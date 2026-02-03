@@ -1,0 +1,152 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.paperpiper'
+version = '1.0-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    lwjglVersion = '3.3.4'
+    jomlVersion = '1.10.7'
+    libbulletjmeVersion = '21.2.1'
+}
+
+dependencies {
+    // Physics Engine - Libbulletjme (modern Bullet physics for Java)
+    // The base JAR contains natives for all platforms
+    implementation "com.github.stephengold:Libbulletjme:${libbulletjmeVersion}"
+    
+    // LWJGL BOM for version management
+    implementation platform("org.lwjgl:lwjgl-bom:${lwjglVersion}")
+    
+    // LWJGL Core
+    implementation 'org.lwjgl:lwjgl'
+    implementation 'org.lwjgl:lwjgl-glfw'
+    implementation 'org.lwjgl:lwjgl-opengl'
+    implementation 'org.lwjgl:lwjgl-stb'
+    implementation 'org.lwjgl:lwjgl-assimp'
+    
+    // LWJGL Native libraries - All platforms for distribution
+    runtimeOnly "org.lwjgl:lwjgl::natives-windows"
+    runtimeOnly "org.lwjgl:lwjgl-glfw::natives-windows"
+    runtimeOnly "org.lwjgl:lwjgl-opengl::natives-windows"
+    runtimeOnly "org.lwjgl:lwjgl-stb::natives-windows"
+    runtimeOnly "org.lwjgl:lwjgl-assimp::natives-windows"
+    
+    runtimeOnly "org.lwjgl:lwjgl::natives-linux"
+    runtimeOnly "org.lwjgl:lwjgl-glfw::natives-linux"
+    runtimeOnly "org.lwjgl:lwjgl-opengl::natives-linux"
+    runtimeOnly "org.lwjgl:lwjgl-stb::natives-linux"
+    runtimeOnly "org.lwjgl:lwjgl-assimp::natives-linux"
+    
+    runtimeOnly "org.lwjgl:lwjgl::natives-macos"
+    runtimeOnly "org.lwjgl:lwjgl-glfw::natives-macos"
+    runtimeOnly "org.lwjgl:lwjgl-opengl::natives-macos"
+    runtimeOnly "org.lwjgl:lwjgl-stb::natives-macos"
+    runtimeOnly "org.lwjgl:lwjgl-assimp::natives-macos"
+    
+    runtimeOnly "org.lwjgl:lwjgl::natives-macos-arm64"
+    runtimeOnly "org.lwjgl:lwjgl-glfw::natives-macos-arm64"
+    runtimeOnly "org.lwjgl:lwjgl-opengl::natives-macos-arm64"
+    runtimeOnly "org.lwjgl:lwjgl-stb::natives-macos-arm64"
+    runtimeOnly "org.lwjgl:lwjgl-assimp::natives-macos-arm64"
+    
+    // JOML - Math library for 3D graphics
+    implementation "org.joml:joml:${jomlVersion}"
+    
+    // Logging
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+    implementation 'ch.qos.logback:logback-classic:1.4.14'
+    
+    // Testing
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+application {
+    mainClass = 'com.paperpiper.PaperPiper'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'com.paperpiper.PaperPiper'
+    }
+}
+
+// Task to create fat JAR with all dependencies
+tasks.register('fatJar', Jar) {
+    archiveClassifier = 'all'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes 'Main-Class': 'com.paperpiper.PaperPiper'
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    with jar
+}
+
+// Task to download Libbulletjme 
+task downloadBulletNatives {
+    doLast {
+        def os = System.getProperty("os.name").toLowerCase()
+        def arch = System.getProperty("os.arch").toLowerCase()
+        
+        def libName
+        def zipName
+        
+        if (os.contains("win")) {
+            libName = "bulletjme.dll"
+            zipName = "Windows64ReleaseSp_bulletjme.dll"
+        } else if (os.contains("linux")) {
+            libName = "libbulletjme.so"
+            zipName = "Linux64ReleaseSp_libbulletjme.so"
+        } else if (os.contains("mac")) {
+            libName = "libbulletjme.dylib"
+            if (arch.contains("aarch64") || arch.contains("arm")) {
+                zipName = "MacOSX_ARM64ReleaseSp_libbulletjme.dylib"
+            } else {
+                zipName = "MacOSX64ReleaseSp_libbulletjme.dylib"
+            }
+        } else {
+            throw new GradleException("Unsupported OS: " + os)
+        }
+        
+        def nativesDir = file("$buildDir/resources/main/natives")
+        nativesDir.mkdirs()
+        
+        def libFile = file("$nativesDir/$libName")
+        
+        if (!libFile.exists()) {
+            def downloadUrl = "https://github.com/stephengold/Libbulletjme/releases/download/${libbulletjmeVersion}/$zipName"
+            println "Downloading Bullet physics native library from: $downloadUrl"
+            
+            new URL(downloadUrl).withInputStream { input ->
+                libFile.withOutputStream { output ->
+                    output << input
+                }
+            }
+            println "Downloaded native library to: $libFile"
+        } else {
+            println "Native library already exists: $libFile"
+        }
+    }
+}
+
+jar.dependsOn downloadBulletNatives
+fatJar.dependsOn downloadBulletNatives

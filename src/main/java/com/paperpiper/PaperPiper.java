@@ -70,6 +70,11 @@ public class PaperPiper {
         final double nsPerTick = 1000000000.0 / targetFps;
         double delta = 0;
 
+        // FPS counter variables
+        int frameCount = 0;
+        long fpsTimer = System.currentTimeMillis();
+        int lastFps = 0;
+
         while (running && !window.shouldClose()) {
             long now = System.nanoTime();
             delta += (now - lastTime) / nsPerTick;
@@ -91,6 +96,16 @@ public class PaperPiper {
             // renderer.render(); simulation.render() calls renderer.render() internally, so we don't need to call it here
 
             window.swapBuffers();
+
+            // FPS counting
+            frameCount++;
+            if (System.currentTimeMillis() - fpsTimer >= 1000) {
+                lastFps = frameCount;
+                frameCount = 0;
+                fpsTimer = System.currentTimeMillis();
+                window.setTitle(String.format("PaperPiper - Drone Simulator | FPS: %d | Drones: %d", 
+                    lastFps, simulation.getDrones().size()));
+            }
         }
     }
 

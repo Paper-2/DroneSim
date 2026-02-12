@@ -63,10 +63,23 @@ public class SimulationEngine {
 
         // Create render meshes
         groundMesh = Mesh.createPlane(10000f, 10000f);
-        testCubeMesh = Mesh.createBox(1.0f, 1.0f, 1.0f); // 1x1x1 cube
+        testCubeMesh = Mesh.createBox(10.0f, 1.0f, 10.0f); // 1x1x1 cube
         testCubeMatrix = new Matrix4f().identity().translate(0.5f, 0.5f, -0.5f);
 
-        addDrone(new Vector3f(0, 0, 0));
+        // Spawn 100 drones in a 10x10 grid
+        int gridSize = 10;
+        float spacing = 3.0f; // 3 meters between drones
+        float startOffset = -((gridSize - 1) * spacing) / 2.0f;
+        
+        for (int row = 0; row < gridSize; row++) {
+            for (int col = 0; col < gridSize; col++) {
+                float x = startOffset + col * spacing;
+                float z = startOffset + row * spacing;
+                float y = 5.0f; // Start 5m above ground
+                addDrone(new Vector3f(x, y, z));
+            }
+        }
+        
         setActiveDrone(drones.get(0));
 
         logger.info("Simulation initialized with {} drone(s)", drones.size());

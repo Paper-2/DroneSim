@@ -78,6 +78,12 @@ application {
     mainClass = 'com.paperpiper.PaperPiper'
 }
 
+run {
+    if (project.hasProperty('debug')) {
+        jvmArgs '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5005'
+    }
+}
+
 test {
     useJUnitPlatform()
 }
@@ -150,3 +156,4 @@ task downloadBulletNatives {
 
 jar.dependsOn downloadBulletNatives
 fatJar.dependsOn downloadBulletNatives
+run.dependsOn downloadBulletNatives

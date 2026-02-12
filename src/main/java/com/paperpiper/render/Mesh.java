@@ -2,11 +2,16 @@ package com.paperpiper.render;
 
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.Map;
 
-import static org.lwjgl.opengl.GL11.GL_FLOAT;
+import static org.lwjgl.opengl.GL11.GL_FLOAT; // the java package manager expands .*; I hate it.
+import static org.lwjgl.opengl.GL11.GL_TEXTURE_2D;
 import static org.lwjgl.opengl.GL11.GL_TRIANGLES;
 import static org.lwjgl.opengl.GL11.GL_UNSIGNED_INT;
+import static org.lwjgl.opengl.GL11.glBindTexture;
 import static org.lwjgl.opengl.GL11.glDrawElements;
+import static org.lwjgl.opengl.GL13.GL_TEXTURE0;
+import static org.lwjgl.opengl.GL13.glActiveTexture;
 import static org.lwjgl.opengl.GL15.GL_ARRAY_BUFFER;
 import static org.lwjgl.opengl.GL15.GL_ELEMENT_ARRAY_BUFFER;
 import static org.lwjgl.opengl.GL15.GL_STATIC_DRAW;
@@ -22,23 +27,54 @@ import static org.lwjgl.opengl.GL30.glDeleteVertexArrays;
 import static org.lwjgl.opengl.GL30.glGenVertexArrays;
 import org.lwjgl.system.MemoryUtil;
 
-/**
- * Mesh class for storing and rendering 3D geometry.
- */
+import com.jme3.math.Vector3f;
+
+import Math.*;
+import Math.Plane;
+import Math.Shape;
+import Math.Sphere;
+
 public class Mesh {
 
     private int vaoId;
     private int posVboId;
     private int normalVboId;
+    private int texCoordVboId;
     private int idxVboId;
     private int vertexCount;
+    private int textureId;
+    private final String meshName;
+    private String displayName; // Can be modified to add prefixes, etc
 
-    // messh constructor
-    public Mesh(float[] positions, float[] normals, int[] indices) {
+    // Store original vertex data for cloning
+    private final float[] positions; // vertex positions
+    private final float[] normals;
+    private final float[] texCoords; // texture coordinates
+    private final int[] indices;     // connections between vertices
+
+    @SuppressWarnings("unused")
+    private Map<String, String> properties;
+
+    // mesh constructor with UV coordinates
+    public Mesh(float[] positions, float[] normals, float[] texCoords, int[] indices, String name) {
+        this.meshName = name;
+        this.displayName = name;
+
+        // Store copies of the original vertex data for cloning
+        this.positions = positions.clone();
+        this.normals = normals.clone();
+        this.texCoords = texCoords.clone();
+        this.indices = indices.clone();
+
+        FloatBuffer texCoordBuffer = null;
+        initializeGraphicsBuffers(positions, normals, texCoords, indices, texCoordBuffer);
+    }
+
+    private void initializeGraphicsBuffers(float[] positions, float[] normals, float[] texCoords, int[] indices,
+            FloatBuffer texCoordBuffer) {
         FloatBuffer posBuffer = null;
         FloatBuffer normalBuffer = null;
         IntBuffer indicesBuffer = null;
-
         try {
             vertexCount = indices.length;
 
@@ -64,6 +100,17 @@ public class Mesh {
             glEnableVertexAttribArray(1);
             glVertexAttribPointer(1, 3, GL_FLOAT, false, 0, 0);
 
+            // Texture Coordinate VBO
+            if (texCoords != null && texCoords.length > 0) {
+                texCoordVboId = glGenBuffers();
+                texCoordBuffer = MemoryUtil.memAllocFloat(texCoords.length);
+                texCoordBuffer.put(texCoords).flip();
+                glBindBuffer(GL_ARRAY_BUFFER, texCoordVboId);
+                glBufferData(GL_ARRAY_BUFFER, texCoordBuffer, GL_STATIC_DRAW);
+                glEnableVertexAttribArray(2);
+                glVertexAttribPointer(2, 2, GL_FLOAT, false, 0, 0);
+            }
+
             // Index VBO
             idxVboId = glGenBuffers();
             indicesBuffer = MemoryUtil.memAllocInt(indices.length);
@@ -82,10 +129,26 @@ public class Mesh {
             if (normalBuffer != null) {
                 MemoryUtil.memFree(normalBuffer);
             }
+            if (texCoordBuffer != null) {
+                MemoryUtil.memFree(texCoordBuffer);
+            }
             if (indicesBuffer != null) {
                 MemoryUtil.memFree(indicesBuffer);
             }
         }
+    }
+
+    public Mesh(Shape shape, String name) {
+
+        this.meshName = name;
+        this.displayName = name;
+
+        this.positions = shape.getVertices();
+        this.normals = shape.getNormals();
+        this.texCoords = shape.getTexCoords(); // returns null
+        this.indices = shape.getFaces();
+
+        initializeGraphicsBuffers(positions, normals, texCoords, indices, null);
     }
 
     // Vertex Array Object ID
@@ -93,96 +156,102 @@ public class Mesh {
         return vaoId;
     }
 
-    // Vertex count
+    // Vertex count 
     public int getVertexCount() {
         return vertexCount;
     }
 
+    public void setTextureId(int textureId) {
+        this.textureId = textureId;
+    }
+
+    public int getTexture() {
+        return textureId;
+    }
+
+
+    /*
+    * Render the mesh.
+    * No need to worry about this function for now.
+     */
     public void render() {
+        if (textureId != 0) {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, textureId);
+        }
+
         glBindVertexArray(vaoId);
         glDrawElements(GL_TRIANGLES, vertexCount, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
+
+        if (textureId != 0) {
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
     }
 
     public void cleanup() {
         glDisableVertexAttribArray(0);
         glDisableVertexAttribArray(1);
+        glDisableVertexAttribArray(2);
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glDeleteBuffers(posVboId);
         glDeleteBuffers(normalVboId);
+        if (texCoordVboId != 0) {
+            glDeleteBuffers(texCoordVboId);
+        }
         glDeleteBuffers(idxVboId);
 
         glBindVertexArray(0);
         glDeleteVertexArrays(vaoId);
     }
 
-
-    // Loads a cube mesh
-    public static Mesh createCube(float size) {
-        float s = size / 2;
-
-        float[] positions = {
-            -s, -s, s, s, -s, s, s, s, s, -s, s, s,// Front face
-            s, -s, -s, -s, -s, -s, -s, s, -s, s, s, -s,// Back face
-            -s, s, s, s, s, s, s, s, -s, -s, s, -s,// Top face
-            -s, -s, -s, s, -s, -s, s, -s, s, -s, -s, s,// Bottom face
-            s, -s, s, s, -s, -s, s, s, -s, s, s, s,// Right face
-            -s, -s, -s, -s, -s, s, -s, s, s, -s, s, -s// Left face
-        };
-
-        float[] normals = {
-            // Front
-            0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1,
-            // Back
-            0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1,
-            // Top
-            0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0,
-            // Bottom
-            0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0,
-            // Right
-            1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
-            // Left
-            -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0
-        };
-
-        int[] indices = {
-            0, 1, 2, 2, 3, 0, // Front
-            4, 5, 6, 6, 7, 4, // Back
-            8, 9, 10, 10, 11, 8, // Top
-            12, 13, 14, 14, 15, 12, // Bottom
-            16, 17, 18, 18, 19, 16, // Right
-            20, 21, 22, 22, 23, 20 // Left
-        };
-
-        return new Mesh(positions, normals, indices);
+    public static Mesh createSphere(float radius, int segments, int rings) {
+        return new Mesh(new Sphere(new org.joml.Vector3f(0, 0, 0), radius, segments, rings), "sphere");
     }
 
+    public static Mesh createCube(float size) {
+        return createBox(size, size, size);
+    }
 
-    // Loads a plane mesh
+    public static Mesh createBox(float width, float height, float depth) {
+        return new Mesh(new Box(new org.joml.Vector3f(0, 0, 0), width, height, depth), "box");
+    }
+
     public static Mesh createPlane(float width, float depth) {
-        float w = width / 2;
-        float d = depth / 2;
+        return new Mesh(new Plane(new org.joml.Vector3f(0, 0, 0), new org.joml.Vector3f(0, 1, 0), Math.max(width, depth)), "plane");
+    }
 
-        float[] positions = {
-            -w, 0, -d,
-            w, 0, -d,
-            w, 0, d,
-            -w, 0, d
-        };
+    public String getMeshName() {
+        return displayName;
+    }
 
-        float[] normals = {
-            0, 1, 0,
-            0, 1, 0,
-            0, 1, 0,
-            0, 1, 0
-        };
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
 
-        int[] indices = {
-            0, 2, 1,
-            0, 3, 2
-        };
+    /**
+     * Create a deep clone of this mesh with a new name. Recreates GPU resources
+     * and vertex data.
+     */
+    public Mesh clone(String newName) {
+        return new Mesh(positions, normals, texCoords, indices, newName);
+    }
 
-        return new Mesh(positions, normals, indices);
+    public Vector3f getPosition() {
+        Vector3f center = new Vector3f();
+
+        for (int i = 0; i < this.positions.length; i += 3) {
+            center.add(this.positions[i], this.positions[i + 1], this.positions[i + 2]);
+        }
+
+        // Calculate the average position to find the center of the mesh
+        center = center.divideLocal(this.positions.length / 3);
+
+        return center;
+    }
+
+    public float[] getPositions() {
+        return positions;
     }
 }

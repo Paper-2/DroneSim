@@ -1,10 +1,5 @@
 package com.paperpiper.physics;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,56 +22,66 @@ public class PhysicsWorld {
     private List<PhysicsRigidBody> bodies;
 
     // Physics constants
-    private static final float GRAVITY = -9.81f;
+    private static final float GRAVITY = -9.81f; // m/s^2
 
-    // Static initializer to load native library
+    // Static initializer to load native library (cross-platform)
     static {
-        loadNativeLibrary();
-    }
-
-    private static void loadNativeLibrary() {
-        // Determine OS and architecture.
-        String os = System.getProperty("os.name").toLowerCase();
-        String arch = System.getProperty("os.arch").toLowerCase();
-
-        String libName;
-
-        if (os.contains("win")) {
-            libName = "bulletjme.dll";
-        } else if (os.contains("linux")) {
-            libName = "libbulletjme.so";
-        } else if (os.contains("mac")) {
-            libName = "libbulletjme.dylib";
-        } else {
-            throw new UnsupportedOperationException("Unsupported OS: " + os);
-        }
-
         try {
-            // Load from JAR resources
-            String resourcePath = "/natives/" + libName;
-            try (InputStream in = PhysicsWorld.class.getResourceAsStream(resourcePath)) {
-                if (in == null) {
-                    throw new IOException("Native library not found in resources: " + resourcePath);
-                }
+            String os = System.getProperty("os.name").toLowerCase();
+            String arch = System.getProperty("os.arch").toLowerCase();
 
-                // Create temp file
-                Path tempLib = Files.createTempFile("bulletjme", libName.substring(libName.lastIndexOf('.')));
-                Files.copy(in, tempLib, StandardCopyOption.REPLACE_EXISTING);
-
-                // Load the library
-                System.load(tempLib.toAbsolutePath().toString());
-                logger.info("Bullet physics native library loaded successfully from resources");
-
-                // temp file will be deleted on JVM exit
-                tempLib.toFile().deleteOnExit();
+            String libName;
+            String ext;
+            if (os.contains("win")) {
+                ext = ".dll";
+                libName = "bulletjme";
+            } else if (os.contains("mac")) {
+                ext = ".dylib";
+                libName = "libbulletjme";
+            } else {
+                ext = ".so";
+                libName = "libbulletjme";
             }
 
-        } catch (IOException e) {
-            logger.error("Failed to load native library from resources", e);
-            throw new UnsatisfiedLinkError("Failed to load native library: " + e.getMessage());
+            // Map arch to libbulletjme naming convention
+            String archDir = arch.contains("64") ? (arch.contains("aarch") ? "arm64" : "x86_64") : "x86";
+            String osDir = os.contains("win") ? "windows" : os.contains("mac") ? "macos" : "linux";
+
+            String resourcePath = "/natives/" + osDir + "/" + archDir + "/" + libName + ext;
+            String flatResourcePath = "/natives/" + libName + ext;
+
+            java.io.InputStream in = PhysicsWorld.class.getResourceAsStream(resourcePath);
+            if (in == null) {
+                // Try flat path
+                in = PhysicsWorld.class.getResourceAsStream(flatResourcePath);
+                resourcePath = flatResourcePath;
+            }
+            if (in != null) {
+                java.nio.file.Path tempLib = java.nio.file.Files.createTempFile(libName, ext);
+                java.nio.file.Files.copy(in, tempLib, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                in.close();
+                System.load(tempLib.toAbsolutePath().toString());
+                tempLib.toFile().deleteOnExit();
+                logger.info("Bullet physics native library loaded from resources: {}", resourcePath);
+            } else {
+                // Fallback to build directory (try structured path first, then flat path)
+                java.io.File nativeLib = new java.io.File("build/resources/main/natives/" + osDir + "/" + archDir + "/" + libName + ext);
+                if (!nativeLib.exists()) {
+                    // Try flat path (current gradle task downloads here)
+                    nativeLib = new java.io.File("build/resources/main/natives/" + libName + ext);
+                }
+                if (nativeLib.exists()) {
+                    System.load(nativeLib.getAbsolutePath());
+                    logger.info("Bullet physics native library loaded from build directory: {}", nativeLib.getPath());
+                } else {
+                    throw new RuntimeException("Native library not found at " + resourcePath + ". Run 'gradlew downloadBulletNatives'.");
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Failed to load Bullet physics native library", e);
+            throw new RuntimeException("Failed to load native library", e);
         }
     }
-    //----------------------------------
 
     public PhysicsWorld() {
         bodies = new ArrayList<>();
@@ -137,8 +142,8 @@ public class PhysicsWorld {
     }
 
     /**
-     * Create a rigid body with custom shape
-     *  TODO: add overload to load glt models
+     * Create a rigid body with custom shape TODO: add overload to load glt
+     * models
      */
     public PhysicsRigidBody createRigidBody(CollisionShape shape, float mass, Vector3f position) {
         PhysicsRigidBody body = new PhysicsRigidBody(shape, mass);

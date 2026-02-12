@@ -129,8 +129,7 @@ public class ShaderProgram {
         }
         uniforms.put(uniformName, uniformLocation);
     }
-    
-5
+
     public void setUniform(String uniformName, Matrix4f value) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer fb = stack.mallocFloat(16);

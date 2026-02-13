@@ -3,6 +3,7 @@ package com.paperpiper.render;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import static org.lwjgl.opengl.GL11.GL_BACK;
+import static org.lwjgl.opengl.GL11.GL_BLEND;
 import static org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT;
 import static org.lwjgl.opengl.GL11.GL_CULL_FACE;
 import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
@@ -10,8 +11,11 @@ import static org.lwjgl.opengl.GL11.GL_DEPTH_TEST;
 import static org.lwjgl.opengl.GL11.GL_FLOAT;
 import static org.lwjgl.opengl.GL11.GL_LEQUAL;
 import static org.lwjgl.opengl.GL11.GL_LESS;
+import static org.lwjgl.opengl.GL11.GL_ONE_MINUS_SRC_ALPHA;
+import static org.lwjgl.opengl.GL11.GL_SRC_ALPHA;
 import static org.lwjgl.opengl.GL11.GL_TRIANGLES;
 import static org.lwjgl.opengl.GL11.GL_UNSIGNED_INT;
+import static org.lwjgl.opengl.GL11.glBlendFunc;
 import static org.lwjgl.opengl.GL11.glClear;
 import static org.lwjgl.opengl.GL11.glClearColor;
 import static org.lwjgl.opengl.GL11.glCullFace;
@@ -116,6 +120,7 @@ public class Renderer {
         shaderProgram.createUniform("viewMatrix");
         shaderProgram.createUniform("modelMatrix");
         shaderProgram.createUniform("objectColor");
+        shaderProgram.createUniform("objectAlpha");
         shaderProgram.createUniform("cameraPos");
         shaderProgram.createUniform("fogColor");
         shaderProgram.createUniform("fogDensity");
@@ -304,9 +309,25 @@ public class Renderer {
     }
 
     public void renderMesh(Mesh mesh, Matrix4f modelMatrix, Vector3f color) {
+        renderMesh(mesh, modelMatrix, color, 1.0f);
+    }
+
+    public void renderMesh(Mesh mesh, Matrix4f modelMatrix, Vector3f color, float alpha) {
+        if (alpha < 1.0f) {
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glDepthMask(false); // Don't write to depth buffer for transparent objects
+        }
+
         shaderProgram.setUniform("modelMatrix", modelMatrix);
         shaderProgram.setUniform("objectColor", color);
+        shaderProgram.setUniform("objectAlpha", alpha);
         mesh.render();
+
+        if (alpha < 1.0f) {
+            glDepthMask(true);
+            glDisable(GL_BLEND);
+        }
     }
 
     /**
@@ -401,7 +422,6 @@ public class Renderer {
         glDeleteBuffers(skyEboId);
     }
 
-
     // vertex shader TODO: move to separate file 
     private static final String VERTEX_SHADER = """
         #version 330 core
@@ -437,6 +457,7 @@ public class Renderer {
         in float fogDistance;
         
         uniform vec3 objectColor;
+        uniform float objectAlpha;
         uniform vec3 fogColor;
         uniform float fogDensity;
         uniform float fogStart;
@@ -465,7 +486,7 @@ public class Renderer {
             // float fogFactor = clamp((fogEnd - fogDistance) / (fogEnd - fogStart), 0.0, 1.0);
             
             vec3 result = mix(fogColor, litColor, fogFactor);
-            FragColor = vec4(result, 1.0);
+            FragColor = vec4(result, objectAlpha);
         }
         """;
 

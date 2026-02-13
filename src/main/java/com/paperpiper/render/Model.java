@@ -327,6 +327,11 @@ public class Model {
         meshDataList.clear();
     }
 
+    public void remove(MeshData meshData) {
+        meshDataList.remove(meshData);
+        meshData.getMesh().cleanup();
+    }
+
     /**
      * A node in the model's scene hierarchy. Each node has a local transform,
      * zero or more meshes, and zero or more child nodes.

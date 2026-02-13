@@ -4,15 +4,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.jme3.bullet.collision.shapes.BoxCollisionShape;
-import com.jme3.bullet.collision.shapes.CompoundCollisionShape; // ▰▱▰▱
+import com.jme3.bullet.collision.shapes.BoxCollisionShape; // ▰▱▰▱
+import com.jme3.bullet.collision.shapes.CompoundCollisionShape;
 import com.jme3.bullet.objects.PhysicsRigidBody;
 import com.jme3.math.Matrix3f;
 import com.jme3.math.Quaternion;
-import org.joml.Quaternionf;
 import com.jme3.math.Vector3f;
 import com.paperpiper.physics.PhysicsWorld;
 import com.paperpiper.render.Mesh;
@@ -241,10 +241,15 @@ public class Drone {
         }
 
         this.collisionBoxesVisible = visible;
+        List<MeshData> meshForDeletion = new ArrayList<>();
 
         // Remove existing collision debug markers
-        model.getMeshDataList().removeIf(md
-                -> md.getMesh().getMeshName().startsWith("debug_collision_"));
+        for (MeshData mesh : model.getMeshDataList()) {
+            if (mesh.getMesh().getMeshName() != null && mesh.getMesh().getMeshName().startsWith("debug_collision_")) {
+                meshForDeletion.add(mesh);
+            }
+        }
+        meshForDeletion.forEach(model::remove);
 
         if (visible && !meshCollisionBoxes.isEmpty()) {
             // Visualize each mesh's collision box with different colors

@@ -14,6 +14,9 @@ import com.jme3.bullet.objects.PhysicsRigidBody;
 import com.jme3.math.Plane;
 import com.jme3.math.Vector3f;
 
+import Math.Box;
+import Math.Shape;
+
 public class PhysicsWorld {
 
     private static final Logger logger = LoggerFactory.getLogger(PhysicsWorld.class);
@@ -139,6 +142,16 @@ public class PhysicsWorld {
         addRigidBody(box);
 
         return box;
+    }
+
+    public PhysicsRigidBody createShape(Shape shape, float mass, Vector3f position) {
+
+        if (shape instanceof Box) {
+            Box box = (Box) shape;
+            return createBox(new Vector3f(box.getWidth() / 2, box.getHeight() / 2, box.getDepth() / 2), mass, position);
+        } else {
+            throw new UnsupportedOperationException("Shape type not supported: " + shape.getClass().getSimpleName());
+        }
     }
 
     /**

@@ -56,30 +56,30 @@ public class SimulationEngine {
 
         physicsWorld.createGroundPlane();
 
-        // Add test cube (1x1x1) below where front-left propeller will be
-        // Half-extents of 0.5 = 1m cube, positioned at (0.5, 0.5, -0.5)
-        physicsWorld.createBox(new Vector3f(0.5f, 0.5f, 0.5f), 0f, new Vector3f(0.5f, 0.5f, -0.5f));
-        logger.info("Added test collision cube at (0.5, 0.5, -0.5)");
+        // Add test cube (10x1x10) platform
+        // Half-extents of (5, 0.5, 5) = 10x1x10 cube, positioned at (0, 0.5, 0)
+        physicsWorld.createBox(new Vector3f(5.0f, 0.5f, 5.0f), 0f, new Vector3f(0f, 0.5f, 0f));
+        logger.info("Added test collision cube at (0, 0.5, 0)");
 
         // Create render meshes
         groundMesh = Mesh.createPlane(10000f, 10000f);
-        testCubeMesh = Mesh.createBox(10.0f, 1.0f, 10.0f); // 1x1x1 cube
-        testCubeMatrix = new Matrix4f().identity().translate(0.5f, 0.5f, -0.5f);
+        testCubeMesh = Mesh.createBox(10.0f, 1.0f, 10.0f); // 10x1x10 cube
+        testCubeMatrix = new Matrix4f().identity().translate(0f, 0.5f, 0f);
 
         // Spawn 100 drones in a 10x10 grid
         int gridSize = 10;
         float spacing = 3.0f; // 3 meters between drones
         float startOffset = -((gridSize - 1) * spacing) / 2.0f;
-        
+
         for (int row = 0; row < gridSize; row++) {
             for (int col = 0; col < gridSize; col++) {
                 float x = startOffset + col * spacing;
                 float z = startOffset + row * spacing;
-                float y = 5.0f; // Start 5m above ground
+                float y = 500.0f; // Start 500m above ground
                 addDrone(new Vector3f(x, y, z));
             }
         }
-        
+
         setActiveDrone(drones.get(0));
 
         logger.info("Simulation initialized with {} drone(s)", drones.size());
@@ -120,7 +120,14 @@ public class SimulationEngine {
                 for (MeshData meshData : drone.getModel().getMeshesWithTransforms()) {
                     // Combine drone's model matrix with mesh's local transform
                     Matrix4f combinedMatrix = new Matrix4f(drone.getModelMatrix()).mul(meshData.getLocalTransform());
-                    renderer.renderMesh(meshData.getMesh(), combinedMatrix, meshData.getColor());
+
+                    // Render collision debug boxes with 50% transparency
+                    String meshName = meshData.getMesh().getMeshName();
+                    if (meshName != null && (meshName.startsWith("debug_collision_") || meshName.startsWith("collision_"))) {
+                        renderer.renderMesh(meshData.getMesh(), combinedMatrix, meshData.getColor(), 0.5f);
+                    } else {
+                        renderer.renderMesh(meshData.getMesh(), combinedMatrix, meshData.getColor());
+                    }
                 }
             }
         }

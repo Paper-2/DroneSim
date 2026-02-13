@@ -50,13 +50,14 @@ public class Window {
         // boiler plate settings
         // TODO: make configurable later + add resizable/fullscreen options
         glfwDefaultWindowHints();
+        glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
-        glfwWindowHint(GLFW_SAMPLES, 4); // 4x MSAA antialiasing
+        // glfwWindowHint(GLFW_SAMPLES, 8); // TODO: Shaders should handle anti-aliasing.
 
         // Creates window
         handle = glfwCreateWindow(width, height, title, NULL, NULL);

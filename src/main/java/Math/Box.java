@@ -9,12 +9,7 @@ public class Box extends Shape {
     private float height;
     private float depth;
 
-    private Box() {
-        this.center = new Vector3f(0, 0, 0);
-        this.width = 1;
-        this.height = 1;
-        this.depth = 1;
-    }
+
 
     public Box(Vector3f center, float width, float height, float depth) {
         this.center = center;

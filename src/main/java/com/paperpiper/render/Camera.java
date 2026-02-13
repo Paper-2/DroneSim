@@ -33,7 +33,7 @@ public class Camera {
     private final Matrix4f viewMatrix;
 
     public Camera() {
-        this(new Vector3f(0, 5, 15), -90.0f, -15.0f);
+        this(new Vector3f(0, 5, 15), 90.0f, 15.0f);
     }
 
     public Camera(Vector3f position, float yaw, float pitch) {

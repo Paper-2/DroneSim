@@ -36,10 +36,10 @@ public class Drone {
     private static final float DRONE_WIDTH = 0.5f; // meters
     private static final float DRONE_HEIGHT = 0.15f;
     private static final float DRONE_DEPTH = 0.5f;
-    */
+     */
 
     // motor
-    private static final float MAX_THRUST = 25.0f; // N (must overcome gravity + margin)
+    private static final float MAX_THRUST = 5.0f; // N (must overcome gravity + margin) 0.
     private static final float MAX_TORQUE = 5.0f;  // N⋅m
 
     // physics body
@@ -51,10 +51,16 @@ public class Drone {
     private List<MeshCollisionBox> meshCollisionBoxes = new ArrayList<>();
     private boolean collisionBoxesVisible = false;
 
-    private Vector3f front_left_propeller;
-    private Vector3f front_right_propeller;
-    private Vector3f rear_left_propeller;
-    private Vector3f rear_right_propeller;
+    private Vector3f frontLeftPropeller;
+    private Vector3f frontRightPropeller;
+    private Vector3f rearLeftPropeller;
+    private Vector3f rearRightPropeller;
+
+    public float FL, FR, RL, RR; // throttle values for each motor (0.0 to 1.0)
+
+    // acceleration tracking (computed from velocity deltas)
+    private final Vector3f previousVelocity = new Vector3f();
+    private final Vector3f acceleration = new Vector3f();
 
     // visual representation
     private DroneBody droneBody;
@@ -65,6 +71,9 @@ public class Drone {
     private float pitch = 0.0f;    // Forward/backward tilt
     private float roll = 0.0f;     // Left/right tilt
     private float yaw = 0.0f;      // Rotation around vertical axis
+
+    // flight controller (PID stabilization)
+    private final DroneController controller = new DroneController();
 
     // motors state
     private boolean motorsArmed = false;
@@ -82,18 +91,18 @@ public class Drone {
 
         // Initialize visual representation
         droneBody = new DroneBody();
-        model = droneBody.getModel();
+        model = droneBody; // DroneBody now extends Model
 
         // Get propeller positions from the model's rotor groups
         // TODO: fix the names of the meshes to just search for the cylender mesh instead
         // of relying on the group names. works fine at the moment
-        front_left_propeller = model.getGroupPosition("rotors_front_left");
-        front_right_propeller = model.getGroupPosition("rotors_front_right");
-        rear_left_propeller = model.getGroupPosition("rotors_rear_left");
-        rear_right_propeller = model.getGroupPosition("rotors_rear_right");
+        frontLeftPropeller = model.getGroupPosition("rotors_front_left");
+        frontRightPropeller = model.getGroupPosition("rotors_front_right");
+        rearLeftPropeller = model.getGroupPosition("rotors_rear_left");
+        rearRightPropeller = model.getGroupPosition("rotors_rear_right");
 
         logger.info("Propeller positions - FL: {}, FR: {}, RL: {}, RR: {}",
-                front_left_propeller, front_right_propeller, rear_left_propeller, rear_right_propeller);
+                frontLeftPropeller, frontRightPropeller, rearLeftPropeller, rearRightPropeller);
 
         // Build compound collision shape from all meshes before adding debug markers 
         // Since those shouldn't have collisions, just a visual aid for thrust direction.
@@ -114,13 +123,11 @@ public class Drone {
         physicsWorld.addRigidBody(rigidBody);
 
         // logger.info("Created compound collision shape with {} mesh boxes", meshCollisionBoxes.size());
-
         // Add debug markers AFTER physics setup - these are visual only, no collisions
         if (DEBUG_MODE) {
             addPropellerDebugMarkers();
         }
     }
-
 
     /**
      * Build a compound collision shape from all meshes in the model. Each mesh
@@ -229,14 +236,14 @@ public class Drone {
         }
     }
 
-
     /**
      * Show or hide collision shape visualization. Must be called after init()
      * to visualize existing collision shapes.
      *
      */
+    // TODO: This function shouldn't be owned by drone. It should be a function of the model or renderer.
     public void setCollisionShapesVisible(boolean visible) {
-        if (model == null) {
+        if (model == null || visible == collisionBoxesVisible) {
             return;
         }
 
@@ -303,29 +310,58 @@ public class Drone {
             return;
         }
 
-        // Get current orientation as rotation matrix
-        Quaternion rotation = rigidBody.getPhysicsRotation(null);
-        Matrix3f rotMatrix = rotation.toRotationMatrix();
+        // Run stabilization controller — takes raw stick inputs + sensor state,
+        // outputs per-motor values with PID corrections applied
+        Quaternion orientation = rigidBody.getPhysicsRotation(null);
+        Vector3f angularVelocity = rigidBody.getAngularVelocity(null);
+        Vector3f position = rigidBody.getPhysicsLocation(null);
+        Vector3f velocity = rigidBody.getLinearVelocity(null);
 
-        Vector3f localUp = new Vector3f(0, 1, 0);
-        Vector3f worldUp = new Vector3f();
-        rotMatrix.mult(localUp, worldUp);
+        // Compute acceleration: a = (v - v_prev) / dt
+        if (deltaTime > 0f) {
+            acceleration.set(
+                    (velocity.x - previousVelocity.x) / deltaTime,
+                    (velocity.y - previousVelocity.y) / deltaTime,
+                    (velocity.z - previousVelocity.z) / deltaTime);
+            previousVelocity.set(velocity);
+        }
 
-        float thrustMagnitude = throttle * MAX_THRUST;
-        Vector3f thrustForce = worldUp.mult(thrustMagnitude);
-        rigidBody.applyCentralForce(thrustForce);
+        controller.update(throttle, roll, pitch, yaw, orientation, angularVelocity,
+                position, velocity, acceleration, deltaTime);
 
-        Vector3f torque = new Vector3f();
+        FL = controller.getMotorFL();
+        FR = controller.getMotorFR();
+        RL = controller.getMotorRL();
+        RR = controller.getMotorRR();
 
-        torque.x = pitch * MAX_TORQUE;
+        applyThrustAtPoint(frontLeftPropeller, FL * MAX_THRUST);
+        applyThrustAtPoint(frontRightPropeller, FR * MAX_THRUST);
+        applyThrustAtPoint(rearLeftPropeller, RL * MAX_THRUST);
+        applyThrustAtPoint(rearRightPropeller, RR * MAX_THRUST);
 
-        torque.z = -roll * MAX_TORQUE;
+        droneBody.updateModel(FL, FR, RL, RR, deltaTime);
 
-        torque.y = yaw * MAX_TORQUE;
+    }
 
-        Vector3f worldTorque = new Vector3f();
-        rotMatrix.mult(torque, worldTorque);
-        rigidBody.applyTorque(worldTorque);
+    /**
+     * Applies an upward thrust force at a local point on the drone. Converts
+     * the local point to world space using the body's orientation, producing
+     * both linear force and torque from the offset.
+     */
+    private void applyThrustAtPoint(Vector3f localPoint, float thrustForce) {
+        if (localPoint == null || thrustForce == 0f) {
+            return;
+        }
+
+        // Rotate local offset into world space
+        Quaternion rot = rigidBody.getPhysicsRotation(null);
+        Matrix3f rotMatrix = rot.toRotationMatrix();
+        Vector3f worldOffset = rotMatrix.mult(localPoint, new Vector3f());
+
+        // Thrust always acts along the body's local up axis
+        Vector3f force = rotMatrix.mult(new Vector3f(0, thrustForce, 0), new Vector3f());
+
+        rigidBody.applyForce(force, worldOffset);
     }
 
     public Matrix4f getModelMatrix() {
@@ -356,6 +392,11 @@ public class Drone {
             return new Vector3f();
         }
         return rigidBody.getLinearVelocity(null);
+    }
+
+    // Gets the current linear acceleration 
+    public Vector3f getAcceleration() {
+        return acceleration;
     }
 
     public void setThrottle(float throttle) {
@@ -396,6 +437,35 @@ public class Drone {
         return rigidBody;
     }
 
+    /**
+     * Set a world-space point the drone will fly toward (enables position
+     * hold). Cancels existing momentum so the drone starts each new leg from
+     * rest.
+     */
+    public void setTargetPosition(Vector3f target) {
+        controller.setTargetPosition(target);
+
+    }
+
+    /**
+     * Get the current target position, or null if none.
+     */
+    public Vector3f getTargetPosition() {
+        return controller.getTargetPosition();
+    }
+
+    /**
+     * Enable / disable position hold without clearing the target.
+     */
+    public void setPositionHoldEnabled(boolean enabled) {
+        // This function is currently faulty. It will inadvertently disable the autopilot (if it can be called like that)
+        controller.setPositionHoldEnabled(enabled);
+    }
+
+    public boolean isPositionHoldEnabled() {
+        return controller.isPositionHoldEnabled();
+    }
+
     public Model getModel() {
         return model;
     }
@@ -411,6 +481,9 @@ public class Drone {
             pitch = 0;
             roll = 0;
             yaw = 0;
+            previousVelocity.set(0, 0, 0);
+            acceleration.set(0, 0, 0);
+            controller.reset();
         }
     }
 
@@ -429,15 +502,15 @@ public class Drone {
         float markerSize = 0.05f;
 
         // Front propellers - green tint
-        model.addDebugMarker("prop_front_left", front_left_propeller,
+        model.addDebugMarker("prop_front_left", frontLeftPropeller,
                 markerSize, new Vector3f(0.2f, 1.0f, 0.2f));
-        model.addDebugMarker("prop_front_right", front_right_propeller,
+        model.addDebugMarker("prop_front_right", frontRightPropeller,
                 markerSize, new Vector3f(0.2f, 0.8f, 0.2f));
 
         // Rear propellers - red tint
-        model.addDebugMarker("prop_rear_left", rear_left_propeller,
+        model.addDebugMarker("prop_rear_left", rearLeftPropeller,
                 markerSize, new Vector3f(1.0f, 0.2f, 0.2f));
-        model.addDebugMarker("prop_rear_right", rear_right_propeller,
+        model.addDebugMarker("prop_rear_right", rearRightPropeller,
                 markerSize, new Vector3f(0.8f, 0.2f, 0.2f));
 
         logger.info("Debug markers added for propeller positions");

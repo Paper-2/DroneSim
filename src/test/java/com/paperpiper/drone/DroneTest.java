@@ -54,8 +54,8 @@ class DroneTest {
     /**
      * Test that the drone's collision shape settles properly on the ground
      * plane. - Initialize drone with physics - Drop from height - Let physics
-     * settle - Verify drone is not oscillating/glitching - while touching ground
-     * Verify that the drone is above ground 
+     * settle - Verify drone is not oscillating/glitching - while touching
+     * ground Verify that the drone is above ground
      */
     @Test
     void testCollisionShapeSettlesOnGround() {
@@ -69,7 +69,7 @@ class DroneTest {
         // Create drone at spawn height (physics-only to avoid OpenGL in tests)
         float spawnHeight = 2.0f;
         Drone drone = new Drone();
-        drone.initPhysicsOnly(physicsWorld, new Vector3f(0, spawnHeight, 0));
+        drone.init(physicsWorld, new Vector3f(0, spawnHeight, 0));
 
         // Get the rigid body for position/velocity checks
         PhysicsRigidBody body = drone.getRigidBody();

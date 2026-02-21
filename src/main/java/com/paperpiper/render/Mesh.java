@@ -2,6 +2,7 @@ package com.paperpiper.render;
 
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.lwjgl.opengl.GL11.GL_FLOAT; // the java package manager expands .*; I hate it.
@@ -29,7 +30,7 @@ import org.lwjgl.system.MemoryUtil;
 
 import com.jme3.math.Vector3f;
 
-import Math.*;
+import Math.Box;
 import Math.Plane;
 import Math.Shape;
 import Math.Sphere;
@@ -52,8 +53,7 @@ public class Mesh {
     private final float[] texCoords; // texture coordinates
     private final int[] indices;     // connections between vertices
 
-    @SuppressWarnings("unused")
-    private Map<String, String> properties;
+    private final Map<String, String> properties = new HashMap<>();
 
     // mesh constructor with UV coordinates
     public Mesh(float[] positions, float[] normals, float[] texCoords, int[] indices, String name) {
@@ -235,7 +235,10 @@ public class Mesh {
      * and vertex data.
      */
     public Mesh clone(String newName) {
-        return new Mesh(positions, normals, texCoords, indices, newName);
+        Mesh cloned = new Mesh(positions, normals, texCoords, indices, newName);
+        // Copy properties
+        cloned.properties.putAll(this.properties);
+        return cloned;
     }
 
     public Vector3f getPosition() {
@@ -253,5 +256,17 @@ public class Mesh {
 
     public float[] getPositions() {
         return positions;
+    }
+
+    public void setProperty(String key, String value) {
+        properties.put(key, value);
+    }
+
+    public String getProperty(String key) {
+        return properties.get(key);
+    }
+
+    public Map<String, String> getProperties() {
+        return properties;
     }
 }

@@ -1,5 +1,7 @@
 package com.paperpiper.render;
 
+import java.util.List;
+
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import static org.lwjgl.opengl.GL11.GL_BACK;
@@ -11,6 +13,8 @@ import static org.lwjgl.opengl.GL11.GL_DEPTH_TEST;
 import static org.lwjgl.opengl.GL11.GL_FLOAT;
 import static org.lwjgl.opengl.GL11.GL_LEQUAL;
 import static org.lwjgl.opengl.GL11.GL_LESS;
+import static org.lwjgl.opengl.GL11.GL_LINES;
+import static org.lwjgl.opengl.GL11.GL_LINE_STRIP;
 import static org.lwjgl.opengl.GL11.GL_ONE_MINUS_SRC_ALPHA;
 import static org.lwjgl.opengl.GL11.GL_SRC_ALPHA;
 import static org.lwjgl.opengl.GL11.GL_TRIANGLES;
@@ -22,10 +26,12 @@ import static org.lwjgl.opengl.GL11.glCullFace;
 import static org.lwjgl.opengl.GL11.glDepthFunc;
 import static org.lwjgl.opengl.GL11.glDepthMask;
 import static org.lwjgl.opengl.GL11.glDisable;
+import static org.lwjgl.opengl.GL11.glDrawArrays;
 import static org.lwjgl.opengl.GL11.glDrawElements;
 import static org.lwjgl.opengl.GL11.glEnable;
 import static org.lwjgl.opengl.GL13.GL_MULTISAMPLE;
 import static org.lwjgl.opengl.GL15.GL_ARRAY_BUFFER;
+import static org.lwjgl.opengl.GL15.GL_DYNAMIC_DRAW;
 import static org.lwjgl.opengl.GL15.GL_ELEMENT_ARRAY_BUFFER;
 import static org.lwjgl.opengl.GL15.GL_STATIC_DRAW;
 import static org.lwjgl.opengl.GL15.glBindBuffer;
@@ -65,6 +71,11 @@ public class Renderer {
     private int skyVboId;
     private int skyEboId;
     private int skyIndexCount;
+
+    // Debug line rendering
+    private int lineVaoId;
+    private int lineVboId;
+    private boolean lineBuffersInitialized = false;
 
     // Fog settings
     private Vector3f fogColor = new Vector3f(0.7f, 0.8f, 0.9f);
@@ -355,6 +366,101 @@ public class Renderer {
         shaderProgram.bind();
     }
 
+    /**
+     * Render a 3D line between two world-space points.
+     * Must be called between render() and endRender()
+     */
+    public void renderLine(Vector3f from, Vector3f to, Vector3f color) {
+        // Lazy-init the reusable line VAO/VBO once
+        if (!lineBuffersInitialized) {
+            lineVaoId = glGenVertexArrays();
+            glBindVertexArray(lineVaoId);
+
+            lineVboId = glGenBuffers();
+            glBindBuffer(GL_ARRAY_BUFFER, lineVboId);
+            // Allocate space for 2 vertices × 6 floats (pos + normal)
+            glBufferData(GL_ARRAY_BUFFER, 12 * Float.BYTES, GL_DYNAMIC_DRAW);
+            glEnableVertexAttribArray(0);  // position
+            glVertexAttribPointer(0, 3, GL_FLOAT, false, 6 * Float.BYTES, 0);
+            glEnableVertexAttribArray(1);  // normal (unused but shader expects it)
+            glVertexAttribPointer(1, 3, GL_FLOAT, false, 6 * Float.BYTES, 3L * Float.BYTES);
+
+            glBindVertexArray(0);
+            lineBuffersInitialized = true;
+        }
+
+        // Upload the two endpoints (interleaved: pos + dummy normal)
+        float[] data = {
+            from.x, from.y, from.z,  0f, 1f, 0f,
+            to.x,   to.y,   to.z,    0f, 1f, 0f
+        };
+        glBindBuffer(GL_ARRAY_BUFFER, lineVboId);
+        glBufferData(GL_ARRAY_BUFFER, data, GL_DYNAMIC_DRAW);
+
+        // Set up the model matrix as identity (positions are already in world space)
+        shaderProgram.setUniform("modelMatrix", new Matrix4f().identity());
+        shaderProgram.setUniform("objectColor", color);
+        shaderProgram.setUniform("objectAlpha", 1.0f);
+
+        // Draw the line (disable culling since lines have no face)
+        glDisable(GL_CULL_FACE);
+        glBindVertexArray(lineVaoId);
+        glDrawArrays(GL_LINES, 0, 2);
+        glBindVertexArray(0);
+        glEnable(GL_CULL_FACE);
+
+    }
+    // Render a line .
+    public void renderLineStrip(List<Vector3f> points, Vector3f color) {
+        if (points == null || points.size() < 2) {
+            return;
+        }
+
+        // Lazy-init
+        if (!lineBuffersInitialized) {
+            lineVaoId = glGenVertexArrays();
+            glBindVertexArray(lineVaoId);
+
+            lineVboId = glGenBuffers();
+            glBindBuffer(GL_ARRAY_BUFFER, lineVboId);
+            glBufferData(GL_ARRAY_BUFFER, 12 * Float.BYTES, GL_DYNAMIC_DRAW);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 3, GL_FLOAT, false, 6 * Float.BYTES, 0);
+            glEnableVertexAttribArray(1);
+            glVertexAttribPointer(1, 3, GL_FLOAT, false, 6 * Float.BYTES, 3L * Float.BYTES);
+
+            glBindVertexArray(0);
+            lineBuffersInitialized = true;
+        }
+
+        // Build interleaved vertex data (pos + dummy normal per point)
+        int n = points.size();
+        float[] data = new float[n * 6];
+        for (int i = 0; i < n; i++) {
+            Vector3f p = points.get(i);
+            int off = i * 6;
+            data[off]     = p.x;
+            data[off + 1] = p.y;
+            data[off + 2] = p.z;
+            data[off + 3] = 0f;
+            data[off + 4] = 1f;
+            data[off + 5] = 0f;
+        }
+
+        glBindBuffer(GL_ARRAY_BUFFER, lineVboId);
+        glBufferData(GL_ARRAY_BUFFER, data, GL_DYNAMIC_DRAW);
+
+        shaderProgram.setUniform("modelMatrix", new Matrix4f().identity());
+        shaderProgram.setUniform("objectColor", color);
+        shaderProgram.setUniform("objectAlpha", 1.0f);
+
+        glDisable(GL_CULL_FACE);
+        glBindVertexArray(lineVaoId);
+        glDrawArrays(GL_LINE_STRIP, 0, n);
+        glBindVertexArray(0);
+        glEnable(GL_CULL_FACE);
+    }
+
     public void endRender() {
         shaderProgram.unbind();
     }
@@ -420,6 +526,11 @@ public class Renderer {
         glDeleteVertexArrays(skyVaoId);
         glDeleteBuffers(skyVboId);
         glDeleteBuffers(skyEboId);
+        // Clean up debug line buffers
+        if (lineBuffersInitialized) {
+            glDeleteVertexArrays(lineVaoId);
+            glDeleteBuffers(lineVboId);
+        }
     }
 
     // vertex shader TODO: move to separate file 

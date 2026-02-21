@@ -1,15 +1,23 @@
 package com.paperpiper;
 
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_A;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_D;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_F3;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_CONTROL;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_S;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_TAB;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_W;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.paperpiper.physics.PhysicsWorld;
-import com.paperpiper.render.Camera; 
+import com.paperpiper.render.Camera;
 import com.paperpiper.render.Renderer;
 import com.paperpiper.render.Window;
 import com.paperpiper.simulation.SimulationEngine;
-
-import static org.lwjgl.glfw.GLFW.*;
 
 /**
  * PaperPiper - Drone Simulator
@@ -22,6 +30,7 @@ public class PaperPiper {
     private Renderer renderer;
     private PhysicsWorld physicsWorld;
     private SimulationEngine simulation;
+    //private GameController controller;
 
     private boolean running = false;
     private boolean mouseCaptured = false;
@@ -58,6 +67,13 @@ public class PaperPiper {
         simulation = new SimulationEngine(physicsWorld);
         simulation.init();
 
+        // Initialize controller input
+        // controller = new GameController();
+        // if (controller.isConnected()) {
+        //     logger.info("Controller detected: {}", controller.getName());
+        // } else {
+        //     logger.info("No controller detected — will scan each frame");
+        // }
         running = true;
         logger.info("Initialization complete!");
     }
@@ -103,8 +119,8 @@ public class PaperPiper {
                 lastFps = frameCount;
                 frameCount = 0;
                 fpsTimer = System.currentTimeMillis();
-                window.setTitle(String.format("PaperPiper - Drone Simulator | FPS: %d | Drones: %d", 
-                    lastFps, simulation.getDrones().size()));
+                window.setTitle(String.format("PaperPiper - Drone Simulator | FPS: %d | Drones: %d",
+                        lastFps, simulation.getDrones().size()));
             }
         }
     }
@@ -163,6 +179,24 @@ public class PaperPiper {
                 window.pollEvents();
             }
         }
+
+        // Disabled because its not meant to be used. But it can be used if the need arises.
+/*        controller.update();
+        if (controller.isConnected() && simulation.getActiveDrone() != null) {
+            var drone = simulation.getActiveDrone();
+
+            drone.setThrottle(controller.getThrottle());
+            drone.setPitch(controller.getPitch());
+            drone.setRoll(controller.getRoll());
+            drone.setYaw(controller.getYaw());
+
+            if (controller.isArmToggled()) {
+                drone.setMotorsArmed(!drone.isMotorsArmed());
+            }
+            if (controller.isResetPressed()) {
+                drone.reset(new com.jme3.math.Vector3f(0, 2, 0));
+            }
+        }*/
     }
 
     private void cleanup() {

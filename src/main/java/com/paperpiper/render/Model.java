@@ -2,7 +2,6 @@ package com.paperpiper.render;
 
 // TODO: Model currently uses jme3 Vector3f for public API to match physics code.
 //
-
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
@@ -11,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.joml.Matrix4f;
-import org.joml.Vector3f; // evil
 import org.lwjgl.BufferUtils;
 import org.lwjgl.assimp.AIColor4D;
 import org.lwjgl.assimp.AIFace;
@@ -41,6 +39,8 @@ import org.lwjgl.stb.STBImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.jme3.math.Vector3f;
+
 /**
  * Represents a 3D model loaded from a model file using Assimp. Supports
  * multiple formats: GLB (binary), GLTF (JSON), and Blender (.blend) files.
@@ -52,16 +52,20 @@ public class Model {
     private static final Logger logger = LoggerFactory.getLogger(Model.class);
 
     private final String name;
-    private final List<MeshData> meshDataList;
+    private final Map<String, MeshData> meshDataMap; // mesh name -> MeshData
     private final List<MaterialInfo> materials;
     private SceneNode rootNode;
-    private final Map<String, List<String>> meshGroups; // group name -> list of mesh names
+    private final Map<String, List<Mesh>> meshGroups; // group name -> list of meshes
 
     public Model(String name) {
         this.name = name;
-        this.meshDataList = new ArrayList<>();
+        this.meshDataMap = new HashMap<>();
         this.materials = new ArrayList<>();
         this.meshGroups = new HashMap<>();
+
+        // Initialize default groups
+        this.meshGroups.put("no_group", new ArrayList<>());
+        this.meshGroups.put("debug", new ArrayList<>());
     }
 
     /**
@@ -112,7 +116,7 @@ public class Model {
         Assimp.aiReleaseImport(scene);
 
         logger.info("Model '{}' loaded: {} mesh(es), {} material(s)",
-                name, meshDataList.size(), materials.size());
+                name, meshDataMap.size(), materials.size());
     }
 
     /**
@@ -134,7 +138,7 @@ public class Model {
         // Node name
         String nodeName = node.mName().dataString();
         if (nodeName == null || nodeName.isEmpty()) {
-            nodeName = "node_" + meshDataList.size();
+            nodeName = "node_" + meshDataMap.size();
         }
 
         SceneNode sceneNode = new SceneNode(nodeName, localTransform);
@@ -153,8 +157,13 @@ public class Model {
                     ? materials.get(matIndex).getDiffuseColor()
                     : new Vector3f(0.8f, 0.8f, 0.8f);
 
-            MeshData meshData = new MeshData(mesh, globalTransform, meshColor);
-            meshDataList.add(meshData);
+            MeshData meshData = new MeshData(mesh, globalTransform,
+                    new org.joml.Vector3f(meshColor.x, meshColor.y, meshColor.z));
+            meshDataMap.put(mesh.getMeshName(), meshData);
+
+            // Add mesh to "no_group" by default
+            mesh.setProperty("group", "no_group");
+            meshGroups.get("no_group").add(mesh);
         }
 
         // Recurse into children
@@ -229,7 +238,7 @@ public class Model {
         String meshName = aiMesh.mName().dataString();
         System.err.println("Processing mesh: " + meshName + " with " + vertexCount + " vertices and " + indices.length + " indices");
         if (meshName == null || meshName.isEmpty()) {
-            meshName = name + "_mesh_" + meshDataList.size();
+            meshName = name + "_mesh_" + meshDataMap.size();
         }
 
         logger.debug("  Mesh '{}': {} vertices, {} indices", meshName, vertexCount, indices.length);
@@ -280,14 +289,14 @@ public class Model {
      * All mesh + transform pairs that make up this model.
      */
     public List<MeshData> getMeshDataList() {
-        return meshDataList;
+        return new ArrayList<>(meshDataMap.values());
     }
 
     /**
      * Alias used by SimulationEngine for rendering.
      */
     public List<MeshData> getMeshesWithTransforms() {
-        return meshDataList;
+        return new ArrayList<>(meshDataMap.values());
     }
 
     /**
@@ -305,14 +314,14 @@ public class Model {
     }
 
     public int getMeshCount() {
-        return meshDataList.size();
+        return meshDataMap.size();
     }
 
     /**
      * Render every mesh in this model.
      */
     public void render() {
-        for (MeshData md : meshDataList) {
+        for (MeshData md : meshDataMap.values()) {
             md.getMesh().render();
         }
     }
@@ -321,14 +330,14 @@ public class Model {
      * Free all GPU resources held by this model's meshes.
      */
     public void cleanup() {
-        for (MeshData md : meshDataList) {
+        for (MeshData md : meshDataMap.values()) {
             md.getMesh().cleanup();
         }
-        meshDataList.clear();
+        meshDataMap.clear();
     }
 
     public void remove(MeshData meshData) {
-        meshDataList.remove(meshData);
+        meshDataMap.remove(meshData.getMesh().getMeshName());
         meshData.getMesh().cleanup();
     }
 
@@ -424,25 +433,23 @@ public class Model {
     }
 
     public void textureMesh(String textureName, String materialName, int textureId) {
-        for (MeshData md : meshDataList) {
-            if (md.getMesh().getMeshName().equals(materialName)) {
-                md.getMesh().setTextureId(textureId);
-                logger.info("Applied texture '{}' to mesh '{}'", textureName, materialName);
-                return;
-            }
+        MeshData md = meshDataMap.get(materialName);
+        if (md != null) {
+            md.getMesh().setTextureId(textureId);
+            logger.info("Applied texture '{}' to mesh '{}'", textureName, materialName);
+        } else {
+            logger.warn("No mesh found with name '{}' to apply texture '{}'", materialName, textureName);
         }
-        logger.warn("No mesh found with name '{}' to apply texture '{}'", materialName, textureName);
     }
 
     public void changeColor(String meshName, float r, float g, float b) {
-        for (MeshData md : meshDataList) {
-            if (md.getMesh().getMeshName().equals(meshName)) {
-                md.setColor(r, g, b);
-                logger.info("Changed color of mesh '{}' to ({}, {}, {})", meshName, r, g, b);
-                return;
-            }
+        MeshData md = meshDataMap.get(meshName);
+        if (md != null) {
+            md.setColor(r, g, b);
+            logger.info("Changed color of mesh '{}' to ({}, {}, {})", meshName, r, g, b);
+        } else {
+            logger.warn("No mesh found with name '{}' to change color", meshName);
         }
-        logger.warn("No mesh found with name '{}' to change color", meshName);
     }
 
     public int loadTexture(String texturePath) {
@@ -486,7 +493,6 @@ public class Model {
         return textureId;
     }
 
-
     /**
      * Create a new mesh group with the given name.
      */
@@ -499,21 +505,27 @@ public class Model {
      * Add meshes to a group by their names.
      */
     public void addMeshToGroup(String[] meshNames, String groupName) {
-        List<String> group = meshGroups.get(groupName);
+        List<Mesh> group = meshGroups.get(groupName);
         if (group == null) {
             logger.warn("Group '{}' does not exist", groupName);
             return;
         }
         for (String meshName : meshNames) {
-            // Find the mesh and rename it with group prefix
-            for (MeshData md : meshDataList) {
-                if (md.getMesh().getMeshName().equals(meshName)) {
-                    String newName = groupName + "_" + meshName;
-                    md.getMesh().setDisplayName(newName);
-                    group.add(newName);
-                    logger.info("Added mesh '{}' to group '{}' (renamed to '{}')", meshName, groupName, newName);
-                    break;
+            // Find the mesh and add it to the group with property
+            MeshData md = meshDataMap.get(meshName);
+            if (md != null) {
+                Mesh mesh = md.getMesh();
+
+                // Remove from previous group if it has one
+                String oldGroup = mesh.getProperty("group");
+                if (oldGroup != null && meshGroups.containsKey(oldGroup)) {
+                    meshGroups.get(oldGroup).remove(mesh);
                 }
+
+                // Set the group property and add to new group
+                mesh.setProperty("group", groupName);
+                group.add(mesh);
+                logger.info("Added mesh '{}' to group '{}'", meshName, groupName);
             }
         }
     }
@@ -523,41 +535,40 @@ public class Model {
      * all meshes.
      */
     public void copyGroup(String sourceGroup, String targetGroup) {
-        List<String> source = meshGroups.get(sourceGroup);
+        List<Mesh> source = meshGroups.get(sourceGroup);
         if (source == null) {
             logger.warn("Source group '{}' does not exist", sourceGroup);
             return;
         }
 
-        List<String> target = new ArrayList<>();
+        List<Mesh> target = new ArrayList<>();
         meshGroups.put(targetGroup, target);
 
         // For each mesh in the source group, create a full copy
-        for (String sourceMeshName : source) {
+        for (Mesh sourceMesh : source) {
             // Find the source MeshData
-            MeshData sourceMeshData = null;
-            for (MeshData md : meshDataList) {
-                if (md.getMesh().getMeshName().equals(sourceMeshName)) {
-                    sourceMeshData = md;
-                    break;
-                }
-            }
+            String sourceMeshName = sourceMesh.getMeshName();
+            MeshData sourceMeshData = meshDataMap.get(sourceMeshName);
 
             if (sourceMeshData != null) {
-                // Clone the mesh with a new name
-                String newMeshName = targetGroup + "_" + sourceMeshData.getMesh().getMeshName();
+                // Clone the mesh keeping the original base name
+                String baseName = sourceMeshData.getMesh().getMeshName();
+                String newMeshName = targetGroup + "_" + baseName;
                 Mesh clonedMesh = sourceMeshData.getMesh().clone(newMeshName);
+
+                // Set the group property for the cloned mesh
+                clonedMesh.setProperty("group", targetGroup);
 
                 // Create a new MeshData with copied transform and color
                 MeshData copiedMeshData = new MeshData(
                         clonedMesh,
                         new Matrix4f(sourceMeshData.getLocalTransform()),
-                        new Vector3f(sourceMeshData.getColor())
+                        new org.joml.Vector3f(sourceMeshData.getColor())
                 );
 
                 // Add to meshDataList and target group
-                meshDataList.add(copiedMeshData);
-                target.add(newMeshName);
+                meshDataMap.put(clonedMesh.getMeshName(), copiedMeshData);
+                target.add(clonedMesh);
 
                 logger.info("Copied mesh '{}' to group '{}' (new name: '{}')",
                         sourceMeshName, targetGroup, newMeshName);
@@ -571,36 +582,35 @@ public class Model {
      * Get the pivot point (center) of a group of meshes.
      *
      */
-    public com.jme3.math.Vector3f getGroupPosition(String groupName) {
-        org.joml.Vector3f pivot = getGroupPivot(groupName);
-        return new com.jme3.math.Vector3f(pivot.x, pivot.y, pivot.z);
+    public Vector3f getGroupPosition(String groupName) {
+        Vector3f pivot = getGroupPivot(groupName);
+        return new Vector3f(pivot.x, pivot.y, pivot.z);
     }
 
     /**
      * Get the pivot point (center) of a group of meshes.
      */
-    private org.joml.Vector3f getGroupPivot(String groupName) {
-        List<String> group = meshGroups.get(groupName);
+    private Vector3f getGroupPivot(String groupName) {
+        List<Mesh> group = meshGroups.get(groupName);
         if (group == null || group.isEmpty()) {
-            return new org.joml.Vector3f(0, 0, 0);
+            return new Vector3f(0, 0, 0);
         }
 
-        org.joml.Vector3f pivot = new org.joml.Vector3f(0, 0, 0);
+        Vector3f pivot = new Vector3f(0, 0, 0);
         int count = 0;
 
-        for (String meshName : group) {
-            for (MeshData md : meshDataList) {
-                if (md.getMesh().getMeshName().equals(meshName)) {
-                    org.joml.Vector3f pos = new org.joml.Vector3f();
-                    md.getLocalTransform().getTranslation(pos);
-                    pivot.add(pos);
-                    count++;
-                }
+        for (Mesh mesh : group) {
+            MeshData md = meshDataMap.get(mesh.getMeshName());
+            if (md != null) {
+                org.joml.Vector3f tempPos = new org.joml.Vector3f();
+                md.getLocalTransform().getTranslation(tempPos);
+                pivot.addLocal(tempPos.x, tempPos.y, tempPos.z);
+                count++;
             }
         }
 
         if (count > 0) {
-            pivot.div(count);
+            pivot.divideLocal(count);
         }
         return pivot;
     }
@@ -609,12 +619,53 @@ public class Model {
      * Flip (mirror) a single mesh along specified axes around the model origin.
      */
     public void flip(String meshName, boolean flipX, boolean flipY, boolean flipZ) {
-        for (MeshData md : meshDataList) {
-            if (md.getMesh().getMeshName().equals(meshName)) {
+        MeshData md = meshDataMap.get(meshName);
+        if (md != null) {
+            Matrix4f transform = md.getLocalTransform();
+
+            // Get current translation
+            org.joml.Vector3f translation = new org.joml.Vector3f();
+            transform.getTranslation(translation);
+
+            // Mirror the position across the specified axes (around origin)
+            if (flipX) {
+                translation.x = -translation.x;
+            }
+            if (flipY) {
+                translation.y = -translation.y;
+            }
+            if (flipZ) {
+                translation.z = -translation.z;
+            }
+
+            // Update the translation in the transform matrix
+            transform.setTranslation(translation);
+
+            logger.info("Flipped mesh '{}' position to ({}, {}, {})",
+                    meshName, translation.x, translation.y, translation.z);
+        } else {
+            logger.warn("Mesh '{}' not found for flip operation", meshName);
+        }
+    }
+
+    /**
+     * Flip (mirror) all meshes in a group along specified axes around the model
+     * origin. This mirrors the position of meshes across the specified axes.
+     */
+    public void flipGroup(String groupName, boolean flipX, boolean flipY, boolean flipZ) {
+        List<Mesh> group = meshGroups.get(groupName);
+        if (group == null) {
+            logger.warn("Group '{}' does not exist", groupName);
+            return;
+        }
+
+        for (Mesh mesh : group) {
+            MeshData md = meshDataMap.get(mesh.getMeshName());
+            if (md != null) {
                 Matrix4f transform = md.getLocalTransform();
 
                 // Get current translation
-                Vector3f translation = new Vector3f();
+                org.joml.Vector3f translation = new org.joml.Vector3f();
                 transform.getTranslation(translation);
 
                 // Mirror the position across the specified axes (around origin)
@@ -632,50 +683,7 @@ public class Model {
                 transform.setTranslation(translation);
 
                 logger.info("Flipped mesh '{}' position to ({}, {}, {})",
-                        meshName, translation.x, translation.y, translation.z);
-                return;
-            }
-        }
-        logger.warn("Mesh '{}' not found for flip operation", meshName);
-    }
-
-    /**
-     * Flip (mirror) all meshes in a group along specified axes around the model
-     * origin. This mirrors the position of meshes across the specified axes.
-     */
-    public void flipGroup(String groupName, boolean flipX, boolean flipY, boolean flipZ) {
-        List<String> group = meshGroups.get(groupName);
-        if (group == null) {
-            logger.warn("Group '{}' does not exist", groupName);
-            return;
-        }
-
-        for (String meshName : group) {
-            for (MeshData md : meshDataList) {
-                if (md.getMesh().getMeshName().equals(meshName)) {
-                    Matrix4f transform = md.getLocalTransform();
-
-                    // Get current translation
-                    Vector3f translation = new Vector3f();
-                    transform.getTranslation(translation);
-
-                    // Mirror the position across the specified axes (around origin)
-                    if (flipX) {
-                        translation.x = -translation.x;
-                    }
-                    if (flipY) {
-                        translation.y = -translation.y;
-                    }
-                    if (flipZ) {
-                        translation.z = -translation.z;
-                    }
-
-                    // Update the translation in the transform matrix
-                    transform.setTranslation(translation);
-
-                    logger.info("Flipped mesh '{}' position to ({}, {}, {})",
-                            meshName, translation.x, translation.y, translation.z);
-                }
+                        mesh.getMeshName(), translation.x, translation.y, translation.z);
             }
         }
     }
@@ -685,7 +693,7 @@ public class Model {
      * group's center.
      */
     public void rotateGroup(String groupName, float angleX, float angleY, float angleZ) {
-        List<String> group = meshGroups.get(groupName);
+        List<Mesh> group = meshGroups.get(groupName);
         if (group == null) {
             logger.warn("Group '{}' does not exist", groupName);
             return;
@@ -694,18 +702,17 @@ public class Model {
         // Calculate the center of the group
         Vector3f center = new Vector3f();
         int count = 0;
-        for (String meshName : group) {
-            for (MeshData md : meshDataList) {
-                if (md.getMesh().getMeshName().equals(meshName)) {
-                    Vector3f translation = new Vector3f();
-                    md.getLocalTransform().getTranslation(translation);
-                    center.add(translation);
-                    count++;
-                }
+        for (Mesh mesh : group) {
+            MeshData md = meshDataMap.get(mesh.getMeshName());
+            if (md != null) {
+                org.joml.Vector3f translation = new org.joml.Vector3f();
+                md.getLocalTransform().getTranslation(translation);
+                center.addLocal(translation.x, translation.y, translation.z);
+                count++;
             }
         }
         if (count > 0) {
-            center.div(count);
+            center.divideLocal(count);
         }
 
         logger.info("Rotating group '{}' around center ({}, {}, {})", groupName, center.x, center.y, center.z);
@@ -718,7 +725,7 @@ public class Model {
      * Rotate all meshes in a group around a specified pivot point.
      */
     public void rotateGroupAroundPivot(String groupName, float angleX, float angleY, float angleZ, Vector3f pivot) {
-        List<String> group = meshGroups.get(groupName);
+        List<Mesh> group = meshGroups.get(groupName);
         if (group == null) {
             logger.warn("Group '{}' does not exist", groupName);
             return;
@@ -729,34 +736,33 @@ public class Model {
         float radY = (float) Math.toRadians(angleY);
         float radZ = (float) Math.toRadians(angleZ);
 
-        for (String meshName : group) {
-            for (MeshData md : meshDataList) {
-                if (md.getMesh().getMeshName().equals(meshName)) {
-                    Matrix4f transform = md.getLocalTransform();
+        for (Mesh mesh : group) {
+            MeshData md = meshDataMap.get(mesh.getMeshName());
+            if (md != null) {
+                Matrix4f transform = md.getLocalTransform();
 
-                    // Get current translation
-                    Vector3f translation = new Vector3f();
-                    transform.getTranslation(translation);
+                // Get current translation
+                org.joml.Vector3f translation = new org.joml.Vector3f();
+                transform.getTranslation(translation);
 
-                    // Translate to pivot origin
-                    translation.sub(pivot);
+                // Translate to pivot origin (convert pivot from JME3 to JOML)
+                org.joml.Vector3f jomlPivot = new org.joml.Vector3f(pivot.x, pivot.y, pivot.z);
+                translation.sub(jomlPivot);
 
-                    // Apply rotation
-                    Matrix4f rotation = new Matrix4f().rotateXYZ(radX, radY, radZ);
-                    rotation.transformPosition(translation);
+                // Apply rotation
+                Matrix4f rotation = new Matrix4f().rotateXYZ(radX, radY, radZ);
+                rotation.transformPosition(translation);
 
-                    // Translate back from pivot
-                    translation.add(pivot);
+                // Translate back from pivot
+                translation.add(jomlPivot);
 
-                    // Update the translation
-                    transform.setTranslation(translation);
+                // Update the translation
+                transform.setTranslation(translation);
 
-                    // Also rotate the mesh's orientation
-                    transform.rotateXYZ(radX, radY, radZ);
+                // Also rotate the mesh's orientation
+                transform.rotateXYZ(radX, radY, radZ);
 
-                    logger.info("Rotated mesh '{}' around pivot ({}, {}, {})",
-                            meshName, pivot.x, pivot.y, pivot.z);
-                }
+
             }
         }
     }
@@ -765,32 +771,30 @@ public class Model {
      * Translate all meshes in a group by the given offset.
      */
     public void translateGroup(String groupName, float x, float y, float z) {
-        List<String> group = meshGroups.get(groupName);
+        List<Mesh> group = meshGroups.get(groupName);
         if (group == null) {
             logger.warn("Group '{}' does not exist", groupName);
             return;
         }
 
-        for (String meshName : group) {
-            for (MeshData md : meshDataList) {
-                if (md.getMesh().getMeshName().equals(meshName)) {
-                    Matrix4f transform = md.getLocalTransform();
+        for (Mesh mesh : group) {
+            MeshData md = meshDataMap.get(mesh.getMeshName());
+            if (md != null) {
+                Matrix4f transform = md.getLocalTransform();
 
-                    // Get current translation and add offset
-                    Vector3f translation = new Vector3f();
-                    transform.getTranslation(translation);
-                    translation.add(x, y, z);
+                // Get current translation and add offset
+                org.joml.Vector3f translation = new org.joml.Vector3f();
+                transform.getTranslation(translation);
+                translation.add(x, y, z);
 
-                    // Update the translation
-                    transform.setTranslation(translation);
+                // Update the translation
+                transform.setTranslation(translation);
 
-                    logger.info("Translated mesh '{}' to ({}, {}, {})",
-                            meshName, translation.x, translation.y, translation.z);
-                }
+                logger.info("Translated mesh '{}' to ({}, {}, {})",
+                        mesh.getMeshName(), translation.x, translation.y, translation.z);
             }
         }
     }
-
 
     /**
      * Add a debug sphere marker at the specified position.
@@ -798,10 +802,16 @@ public class Model {
     public void addDebugSphere(String name, Vector3f position, float radius, Vector3f color) {
         Mesh marker = Mesh.createSphere(radius, 12, 8);
         marker.setDisplayName("debug_" + name);
+        marker.setProperty("group", "debug");
 
-        Matrix4f transform = new Matrix4f().identity().translate(position);
-        MeshData meshData = new MeshData(marker, transform, color);
-        meshDataList.add(meshData);
+        org.joml.Vector3f jomlPos = new org.joml.Vector3f(position.x, position.y, position.z);
+        Matrix4f transform = new Matrix4f().identity().translate(jomlPos);
+        MeshData meshData = new MeshData(marker, transform,
+                new org.joml.Vector3f(color.x, color.y, color.z));
+        meshDataMap.put(marker.getMeshName(), meshData);
+
+        // Add to debug group
+        meshGroups.get("debug").add(marker);
 
         logger.debug("Added debug sphere '{}' at position ({}, {}, {}) with radius {}",
                 name, position.x, position.y, position.z, radius);
@@ -810,13 +820,17 @@ public class Model {
     /**
      * Add a debug marker (small cube) at the specified position.
      */
-    public void addDebugMarker(String name, com.jme3.math.Vector3f position, float size, com.jme3.math.Vector3f color) {
+    public void addDebugMarker(String name, Vector3f position, float size, Vector3f color) {
         Mesh marker = Mesh.createCube(size);
         marker.setDisplayName("debug_" + name);
+        marker.setProperty("group", "debug");
 
         Matrix4f transform = new Matrix4f().identity().translate(position.x, position.y, position.z);
         MeshData meshData = new MeshData(marker, transform, new org.joml.Vector3f(color.x, color.y, color.z));
-        meshDataList.add(meshData);
+        meshDataMap.put(marker.getMeshName(), meshData);
+
+        // Add to debug group
+        meshGroups.get("debug").add(marker);
 
         logger.info("Added debug marker '{}' at position ({}, {}, {})", name, position.x, position.y, position.z);
     }
@@ -825,15 +839,19 @@ public class Model {
      * Add a debug box at the specified center position with given half-extents.
      * Useful for visualizing axis-aligned bounding boxes (AABB).
      */
-    public void addDebugBox(String name, com.jme3.math.Vector3f center, com.jme3.math.Vector3f halfExtents, com.jme3.math.Vector3f color) {
+    public void addDebugBox(String name, Vector3f center, Vector3f halfExtents, Vector3f color) {
         // Create a box with dimensions based on half-extents (full dimensions = 2 * halfExtents)
         Mesh boxMesh = Mesh.createBox(halfExtents.x * 2, halfExtents.y * 2, halfExtents.z * 2);
         boxMesh.setDisplayName("debug_" + name);
+        boxMesh.setProperty("group", "debug");
 
         // Position at the center
         Matrix4f transform = new Matrix4f().identity().translate(center.x, center.y, center.z);
         MeshData meshData = new MeshData(boxMesh, transform, new org.joml.Vector3f(color.x, color.y, color.z));
-        meshDataList.add(meshData);
+        meshDataMap.put(boxMesh.getMeshName(), meshData);
+
+        // Add to debug group
+        meshGroups.get("debug").add(boxMesh);
 
         logger.debug("Added debug box '{}' at center ({}, {}, {}) with half-extents ({}, {}, {})",
                 name, center.x, center.y, center.z, halfExtents.x, halfExtents.y, halfExtents.z);
@@ -843,7 +861,8 @@ public class Model {
      * Remove all debug markers from the model.
      */
     public void clearDebugMarkers() {
-        meshDataList.removeIf(md -> md.getMesh().getMeshName().startsWith("debug_"));
+        meshDataMap.entrySet().removeIf(entry -> entry.getKey().startsWith("debug_"));
+        meshGroups.get("debug").clear();
         logger.info("Cleared all debug markers");
     }
 
@@ -872,12 +891,27 @@ public class Model {
 
     public void printMeshDetails() {
         logger.info("=== Mesh Details for Model '{}' ===", name);
-        for (int i = 0; i < meshDataList.size(); i++) {
-            MeshData md = meshDataList.get(i);
-            Vector3f pos = new Vector3f();
+        int i = 0;
+        for (MeshData md : meshDataMap.values()) {
+            org.joml.Vector3f pos = new org.joml.Vector3f();
             md.getLocalTransform().getTranslation(pos);
             logger.info("[{}] Mesh: {} | Position: ({}, {}, {}) | Color: {}",
-                    i, md.getMesh().getMeshName(), pos.x, pos.y, pos.z, md.getColor());
+                    i++, md.getMesh().getMeshName(), pos.x, pos.y, pos.z, md.getColor());
+        }
+    }
+
+    public void rotateMesh(String meshName, float angleX, float angleY, float angleZ) {
+        // Convert degrees to radians
+        float radX = (float) Math.toRadians(angleX);
+        float radY = (float) Math.toRadians(angleY);
+        float radZ = (float) Math.toRadians(angleZ);
+
+        MeshData md = meshDataMap.get(meshName);
+        if (md != null) {
+            md.getLocalTransform().rotateXYZ(radX, radY, radZ);
+            // logger.info("Rotated mesh '{}' by angles ({}, {}, {})", meshName, angleX, angleY, angleZ);
+        } else {
+            logger.warn("Mesh '{}' not found for rotation", meshName);
         }
     }
 }

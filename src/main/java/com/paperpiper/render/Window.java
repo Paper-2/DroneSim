@@ -26,15 +26,24 @@ public class Window {
     private int height;
     private boolean resized;
 
+    private boolean headless;
+
     public Window(String title, int width, int height) {
+        this(title, width, height, false);
+    }
+
+    public Window(String title, int width, int height, boolean headless) {
         this.title = title;
         this.width = width;
         this.height = height;
         this.resized = false;
+        this.headless = headless;
     }
 
     /**
-     * Initialize GLFW and create window
+     * Initialize GLFW and create window.
+     * TODO: resolve the conflict if the screen ratio is not 16:9. I believe 
+     * the shaders are at fault
      */
     public void init() {
         logger.info("Initializing GLFW window: {}x{}", width, height);
@@ -52,7 +61,7 @@ public class Window {
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -65,7 +74,8 @@ public class Window {
             throw new RuntimeException("Failed to create the GLFW window");
         }
 
-        // Setup resize callback
+        // Setup resize callback. 
+        // TODO: make resizable and handle this properly in the renderer (recreate framebuffer, etc.)
         glfwSetFramebufferSizeCallback(handle, (window, w, h) -> {
             this.width = w;
             this.height = h;
@@ -100,13 +110,15 @@ public class Window {
         // Make OpenGL context current
         glfwMakeContextCurrent(handle);
 
-        // v-sync
-        glfwSwapInterval(1);
+        // v-sync (disable in headless/test mode so tests run fast)
+        glfwSwapInterval(headless ? 0 : 1);
 
-        // Make window visible
-        glfwShowWindow(handle);
+        // Make window visible unless running headless/tests
+        if (!headless) {
+            glfwShowWindow(handle);
+        }
 
-        // Initialize OpenGL
+        // Initialize OpenGL (context exists even for hidden window)
         GL.createCapabilities();
 
         logger.info("Window created successfully");

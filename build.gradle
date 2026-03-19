@@ -84,6 +84,30 @@ run {
     }
 }
 
+tasks.register('runRossServer', JavaExec) {
+    group = 'application'
+    description = 'Run ROSS protocol server stub'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.paperpiper.server.RossServerMain'
+    if (project.hasProperty('serverArgs')) {
+        args(project.property('serverArgs').toString().split(' '))
+    } else {
+        args('5000', '1')
+    }
+}
+
+tasks.register('runRossClient', JavaExec) {
+    group = 'application'
+    description = 'Run ROSS client'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.paperpiper.client.RossClientMain'
+    if (project.hasProperty('clientArgs')) {
+        args(project.property('clientArgs').toString().split(' '))
+    } else {
+        args('127.0.0.1', '5000', 'drone-1', '55000')
+    }
+}
+
 test {
     useJUnitPlatform()
 }

@@ -121,6 +121,12 @@ public final class RossClientMain {
                             controller.getYaw()
                     );
 
+                    client.sendCameraOffset(
+                            controller.getCameraYawOffset(),
+                            controller.getCameraPitchOffset(),
+                            controller.getCameraDistance()
+                    );
+
                     if (controller.isArmToggled()) {
                         // Toggle arm state — for simplicity we just send true/false alternating
                         wasArmToggled = !wasArmToggled;

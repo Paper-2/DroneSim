@@ -1,5 +1,6 @@
 package com.paperpiper;
 
+import org.joml.Vector3f;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_A;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_D;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE;
@@ -139,12 +140,41 @@ public class PaperPiper {
             renderer.clear();
             simulation.render(renderer);
 
-            // Capture framebuffer for ROSS streaming (after render, before swap)
+            // Capture per-client frames for ROSS streaming (each client's drone-following camera)
             if (rossServer != null && rossServer.isRunning()) {
                 liveHardwareApi.processPendingSpawns();
                 liveHardwareApi.refreshDrones();
-                byte[] pixels = renderer.captureFramebuffer(window.getWidth(), window.getHeight());
-                rossServer.getCamera().supplyLiveFrame(pixels, window.getWidth(), window.getHeight());
+
+                var clientViews = rossServer.getClientCameraViews();
+                if (!clientViews.isEmpty()) {
+                    Camera cam = renderer.getCamera();
+                    // Save spectator camera state
+                    Vector3f savedPos = new Vector3f(cam.getPosition());
+                    float savedYaw = cam.getYaw();
+                    float savedPitch = cam.getPitch();
+
+                    for (var view : clientViews) {
+                        cam.setPosition(new Vector3f(view.camX(), view.camY(), view.camZ()));
+                        cam.setYaw(view.camYaw());
+                        cam.setPitch(view.camPitch());
+
+                        renderer.clear();
+                        simulation.render(renderer);
+
+                        byte[] pixels = renderer.captureFramebuffer(
+                                window.getWidth(), window.getHeight());
+                        rossServer.supplyClientFrame(
+                                view.sessionIndex(), pixels,
+                                window.getWidth(), window.getHeight());
+                    }
+
+                    // Restore spectator camera and re-render for the window
+                    cam.setPosition(savedPos);
+                    cam.setYaw(savedYaw);
+                    cam.setPitch(savedPitch);
+                    renderer.clear();
+                    simulation.render(renderer);
+                }
             }
 
             window.swapBuffers();

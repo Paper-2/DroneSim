@@ -1,10 +1,10 @@
 package com.paperpiper.server;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -23,7 +23,7 @@ import com.paperpiper.simulation.SimulationEngine;
 public class LiveSimulationHardwareApi implements SimulationHardwareApi {
 
     private final SimulationEngine simulation;
-    private final Map<Drone, LiveDroneHardwareApi> adapters = new LinkedHashMap<>();
+    private final Map<Drone, LiveDroneHardwareApi> adapters = new ConcurrentHashMap<>();
 
     /**
      * Pending spawn requests queued by network threads, drained on the GL

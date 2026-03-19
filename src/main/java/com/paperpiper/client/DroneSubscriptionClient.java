@@ -146,6 +146,10 @@ public class DroneSubscriptionClient {
         rossClient.send("ARM|" + armed);
     }
 
+    public void sendCameraOffset(float yawOffset, float pitchOffset, float distance) throws IOException {
+        rossClient.send("CAMERA_OFFSET|" + yawOffset + "|" + pitchOffset + "|" + distance);
+    }
+
     private void onMessage(String message) {
         // Handle subscription ack/error
         CompletableFuture<String> pending = pendingSubscription;

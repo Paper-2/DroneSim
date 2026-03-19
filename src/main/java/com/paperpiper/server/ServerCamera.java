@@ -21,7 +21,7 @@ import com.paperpiper.ross.FrameData;
  */
 public class ServerCamera {
 
-    private static final String PIXEL_FORMAT = "RGBA8";
+    private static final String PIXEL_FORMAT = "GRAY8";
 
     private volatile int width;
     private volatile int height;
@@ -70,10 +70,34 @@ public class ServerCamera {
     }
 
     public FrameData capture(String droneId, DroneTelemetrySample telemetry, long frameTick) {
-        // If a live frame is available, use it (stamp with the requested droneId)
+        // If a live frame is available, downscale and convert to grayscale.
+        // Downscale uses nearest-neighbour sampling to fit the configured camera
+        // resolution, keeping UDP payloads well under the 65 KB datagram limit.
+        // Grayscale conversion uses the ITU-R BT.601 luma formula.
+        //   Source: ITU-R Recommendation BT.601-7
+        //   https://www.itu.int/rec/R-REC-BT.601
         FrameData live = liveFrame.get();
         if (live != null) {
-            return new FrameData(droneId, live.width(), live.height(), live.pixelFormat(), live.payload(), System.currentTimeMillis());
+            int targetW = this.width;
+            int targetH = this.height;
+            byte[] src = live.payload();
+            int srcW = live.width();
+            int srcH = live.height();
+
+            byte[] gray = new byte[targetW * targetH];
+            for (int y = 0; y < targetH; y++) {
+                int srcY = y * srcH / targetH;
+                for (int x = 0; x < targetW; x++) {
+                    int srcX = x * srcW / targetW;
+                    int srcIdx = (srcY * srcW + srcX) * 4;
+                    int r = src[srcIdx] & 0xFF;
+                    int g = src[srcIdx + 1] & 0xFF;
+                    int b = src[srcIdx + 2] & 0xFF;
+                    // ITU-R BT.601 luma
+                    gray[y * targetW + x] = (byte) ((r * 77 + g * 150 + b * 29) >> 8);
+                }
+            }
+            return new FrameData(droneId, targetW, targetH, PIXEL_FORMAT, gray, System.currentTimeMillis());
         }
 
         // Fallback: synthetic pattern
@@ -84,7 +108,8 @@ public class ServerCamera {
         int frameWidth = width;
         int frameHeight = height;
 
-        byte[] pixels = new byte[frameWidth * frameHeight * 4];
+        // Synthetic frames are also grayscale (1 byte per pixel)
+        byte[] pixels = new byte[frameWidth * frameHeight];
 
         float subjectX = 0f;
         float subjectY = 0f;
@@ -110,11 +135,11 @@ public class ServerCamera {
 
         for (int y = 0; y < frameHeight; y++) {
             for (int x = 0; x < frameWidth; x++) {
-                int index = (y * frameWidth + x) * 4;
-                pixels[index] = (byte) ((x + tick + yawBand) & 0xFF);
-                pixels[index + 1] = (byte) ((y + (tick * 2) + pitchBand) & 0xFF);
-                pixels[index + 2] = (byte) ((distanceBand + rollBand + x + y) & 0xFF);
-                pixels[index + 3] = (byte) 0xFF;
+                int r = (x + tick + yawBand) & 0xFF;
+                int g = (y + (tick * 2) + pitchBand) & 0xFF;
+                int b = (distanceBand + rollBand + x + y) & 0xFF;
+                // ITU-R BT.601 luma (same coefficients as live path)
+                pixels[y * frameWidth + x] = (byte) ((r * 77 + g * 150 + b * 29) >> 8);
             }
         }
 

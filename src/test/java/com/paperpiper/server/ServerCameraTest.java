@@ -16,8 +16,8 @@ class ServerCameraTest {
 
         assertEquals(64, frame.width());
         assertEquals(32, frame.height());
-        assertEquals("RGBA8", frame.pixelFormat());
-        assertEquals(64 * 32 * 4, frame.payload().length);
+        assertEquals("GRAY8", frame.pixelFormat());
+        assertEquals(64 * 32, frame.payload().length);
     }
 
     @Test

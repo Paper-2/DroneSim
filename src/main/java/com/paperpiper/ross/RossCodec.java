@@ -1,8 +1,11 @@
 package com.paperpiper.ross;
 
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Optional;
+import java.util.zip.Deflater;
+import java.util.zip.Inflater;
 
 import com.paperpiper.hardware.DroneTelemetrySample;
 import com.paperpiper.hardware.HardwareVector3;
@@ -35,8 +38,13 @@ public final class RossCodec {
                 + "|" + telemetry.timestampMillis();
     }
 
+    /**
+     * Encodes a frame for transmission. The raw pixel payload is
+     * ZLIB-compressed before Base64 encoding, reducing UDP datagram size.
+     */
     public static String encodeFrame(FrameData frame) {
-        String encoded = Base64.getEncoder().encodeToString(frame.payload());
+        byte[] compressed = zlibCompress(frame.payload());
+        String encoded = Base64.getEncoder().encodeToString(compressed);
         return "FRAME|" + frame.droneId()
                 + "|" + frame.width() + "|" + frame.height()
                 + "|" + frame.pixelFormat()
@@ -78,7 +86,8 @@ public final class RossCodec {
         }
 
         try {
-            byte[] payload = Base64.getDecoder().decode(parts[5]);
+            byte[] compressed = Base64.getDecoder().decode(parts[5]);
+            byte[] payload = zlibDecompress(compressed);
             return Optional.of(new FrameData(
                     parts[1],
                     Integer.parseInt(parts[2]),
@@ -86,9 +95,37 @@ public final class RossCodec {
                     parts[4],
                     payload,
                     Long.parseLong(parts[6])));
-        } catch (IllegalArgumentException ex) {
+        } catch (Exception ex) {
             return Optional.empty();
         }
+    }
+
+    // ---- Compression (ZLIB Deflate / Inflate) ----
+    private static byte[] zlibCompress(byte[] data) {
+        Deflater deflater = new Deflater(Deflater.BEST_SPEED);
+        deflater.setInput(data);
+        deflater.finish();
+        ByteArrayOutputStream out = new ByteArrayOutputStream(data.length);
+        byte[] buf = new byte[4096];
+        while (!deflater.finished()) {
+            int count = deflater.deflate(buf);
+            out.write(buf, 0, count);
+        }
+        deflater.end();
+        return out.toByteArray();
+    }
+
+    private static byte[] zlibDecompress(byte[] data) throws Exception {
+        Inflater inflater = new Inflater();
+        inflater.setInput(data);
+        ByteArrayOutputStream out = new ByteArrayOutputStream(data.length * 4);
+        byte[] buf = new byte[4096];
+        while (!inflater.finished()) {
+            int count = inflater.inflate(buf);
+            out.write(buf, 0, count);
+        }
+        inflater.end();
+        return out.toByteArray();
     }
 
     // ---- Utility ----

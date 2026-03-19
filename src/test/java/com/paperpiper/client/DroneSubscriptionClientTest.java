@@ -2,7 +2,6 @@ package com.paperpiper.client;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -12,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
 import com.paperpiper.ross.FrameData;
+import com.paperpiper.ross.RossCodec;
 import com.paperpiper.ross.TelemetryData;
 
 class DroneSubscriptionClientTest {
@@ -33,9 +33,9 @@ class DroneSubscriptionClientTest {
         client.startFrameStreamUdp(6001);
         client.subscribeToDrone("drone-alpha");
 
-        String payload = Base64.getEncoder().encodeToString(new byte[]{9, 8, 7});
+        String payload = RossCodec.encodeFrame("drone-alpha", 320, 240, "GRAY8", new byte[]{9, 8, 7}, 43);
         transport.emit("TELEMETRY|drone-alpha|1|2|3|0.1|0.2|0.3|42");
-        udpReceiver.emit("FRAME|drone-alpha|320|240|RGBA8|" + payload + "|43");
+        udpReceiver.emit(payload);
 
         assertEquals("FRAME_UDP_PORT|6001", transport.sentMessages.get(0));
         assertEquals("SUBSCRIBE|drone-alpha", transport.sentMessages.get(1));
@@ -59,8 +59,8 @@ class DroneSubscriptionClientTest {
         client.connect("localhost", 9999);
         client.startFrameStreamUdp(6002);
 
-        String payload = Base64.getEncoder().encodeToString(new byte[]{1, 2, 3});
-        transport.emit("FRAME|drone-alpha|320|240|RGBA8|" + payload + "|43");
+        String payload = RossCodec.encodeFrame("drone-alpha", 320, 240, "GRAY8", new byte[]{1, 2, 3}, 43);
+        transport.emit(payload);
 
         assertEquals(0, frameEvents.size());
     }

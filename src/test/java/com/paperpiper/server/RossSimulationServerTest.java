@@ -1,7 +1,5 @@
 package com.paperpiper.server;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -11,6 +9,7 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 class RossSimulationServerTest {
@@ -22,9 +21,7 @@ class RossSimulationServerTest {
         try {
             server.start();
 
-            try (Socket socket = new Socket("127.0.0.1", 5601);
-                 BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-                 PrintWriter writer = new PrintWriter(socket.getOutputStream(), true, StandardCharsets.UTF_8)) {
+            try (Socket socket = new Socket("127.0.0.1", 5601); BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)); PrintWriter writer = new PrintWriter(socket.getOutputStream(), true, StandardCharsets.UTF_8)) {
 
                 writer.println("SUBSCRIBE|drone-1");
 
@@ -57,10 +54,7 @@ class RossSimulationServerTest {
         try {
             server.start();
 
-            try (Socket socket = new Socket("127.0.0.1", 5602);
-                 BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-                 PrintWriter writer = new PrintWriter(socket.getOutputStream(), true, StandardCharsets.UTF_8);
-                 DatagramSocket udpSocket = new DatagramSocket(5603)) {
+            try (Socket socket = new Socket("127.0.0.1", 5602); BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)); PrintWriter writer = new PrintWriter(socket.getOutputStream(), true, StandardCharsets.UTF_8); DatagramSocket udpSocket = new DatagramSocket(5603)) {
 
                 udpSocket.setSoTimeout(2000);
                 writer.println("SUBSCRIBE|drone-1");
@@ -73,7 +67,7 @@ class RossSimulationServerTest {
                 udpSocket.receive(packet);
 
                 String message = new String(packet.getData(), packet.getOffset(), packet.getLength(), StandardCharsets.UTF_8);
-                assertTrue(message.startsWith("FRAME|drone-1|32|24|RGBA8|"));
+                assertTrue(message.startsWith("FRAME|drone-1|32|24|GRAY8|"));
 
                 boolean gotAck = false;
                 long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);

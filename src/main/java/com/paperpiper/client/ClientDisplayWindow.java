@@ -74,20 +74,36 @@ public class ClientDisplayWindow {
     private static BufferedImage toBufferedImage(FrameData payload) {
         int width = payload.width();
         int height = payload.height();
-        byte[] rgba = payload.payload();
+        byte[] data = payload.payload();
+        String format = payload.pixelFormat();
 
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 
-        int index = 0;
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int r = rgba[index] & 0xFF;
-                int g = rgba[index + 1] & 0xFF;
-                int b = rgba[index + 2] & 0xFF;
-                int a = rgba[index + 3] & 0xFF;
-                int argb = (a << 24) | (r << 16) | (g << 8) | b;
-                image.setRGB(x, y, argb);
-                index += 4;
+        if ("GRAY8".equals(format)) {
+            // Single-channel grayscale — expand to R=G=B=gray, A=255.
+            // Compressed with ZLIB + grayscale to cut UDP payload size.
+            // Grayscale uses ITU-R BT.601 luma on the server side.
+            int index = 0;
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    int gray = data[index++] & 0xFF;
+                    int argb = 0xFF000000 | (gray << 16) | (gray << 8) | gray;
+                    image.setRGB(x, y, argb);
+                }
+            }
+        } else {
+            // RGBA8 (legacy / fallback)
+            int index = 0;
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    int r = data[index] & 0xFF;
+                    int g = data[index + 1] & 0xFF;
+                    int b = data[index + 2] & 0xFF;
+                    int a = data[index + 3] & 0xFF;
+                    int argb = (a << 24) | (r << 16) | (g << 8) | b;
+                    image.setRGB(x, y, argb);
+                    index += 4;
+                }
             }
         }
 

@@ -141,6 +141,7 @@ public class PaperPiper {
 
             // Capture framebuffer for ROSS streaming (after render, before swap)
             if (rossServer != null && rossServer.isRunning()) {
+                liveHardwareApi.processPendingSpawns();
                 liveHardwareApi.refreshDrones();
                 byte[] pixels = renderer.captureFramebuffer(window.getWidth(), window.getHeight());
                 rossServer.getCamera().supplyLiveFrame(pixels, window.getWidth(), window.getHeight());

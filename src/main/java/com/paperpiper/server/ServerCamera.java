@@ -1,10 +1,23 @@
 package com.paperpiper.server;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 import com.paperpiper.hardware.DroneTelemetrySample;
 import com.paperpiper.hardware.HardwareVector3;
+import com.paperpiper.ross.FrameData;
 
 /**
  * Server-side virtual camera used to generate outbound frame streams.
+ *
+ * <p>
+ * Supports two modes:
+ * <ul>
+ * <li><b>Live mode</b> — call {@link #supplyLiveFrame(byte[], int, int)} from
+ * the render thread to feed real framebuffer pixels. Subsequent
+ * {@link #capture} calls return those pixels.</li>
+ * <li><b>Synthetic mode</b> (default) — if no live frame has been supplied,
+ * {@link #capture} generates a procedural colour pattern.</li>
+ * </ul>
  */
 public class ServerCamera {
 
@@ -20,6 +33,11 @@ public class ServerCamera {
     private volatile float yawDeg;
     private volatile float pitchDeg;
     private volatile float rollDeg;
+
+    /**
+     * Holds the most recent live framebuffer pixels (or null).
+     */
+    private final AtomicReference<FrameData> liveFrame = new AtomicReference<>();
 
     public ServerCamera(int width, int height) {
         this.width = width;
@@ -43,7 +61,26 @@ public class ServerCamera {
         this.height = Math.max(16, height);
     }
 
-    public CameraFramePayload capture(String droneId, DroneTelemetrySample telemetry, long frameTick) {
+    /**
+     * Supply a live framebuffer capture (RGBA pixels, top-to-bottom). Called
+     * from the render thread after {@code glReadPixels}.
+     */
+    public void supplyLiveFrame(byte[] rgbaPixels, int frameWidth, int frameHeight) {
+        liveFrame.set(new FrameData("live", frameWidth, frameHeight, PIXEL_FORMAT, rgbaPixels, System.currentTimeMillis()));
+    }
+
+    public FrameData capture(String droneId, DroneTelemetrySample telemetry, long frameTick) {
+        // If a live frame is available, use it (stamp with the requested droneId)
+        FrameData live = liveFrame.get();
+        if (live != null) {
+            return new FrameData(droneId, live.width(), live.height(), live.pixelFormat(), live.payload(), System.currentTimeMillis());
+        }
+
+        // Fallback: synthetic pattern
+        return captureSynthetic(droneId, telemetry, frameTick);
+    }
+
+    private FrameData captureSynthetic(String droneId, DroneTelemetrySample telemetry, long frameTick) {
         int frameWidth = width;
         int frameHeight = height;
 
@@ -81,7 +118,7 @@ public class ServerCamera {
             }
         }
 
-        return new CameraFramePayload(
+        return new FrameData(
                 droneId,
                 frameWidth,
                 frameHeight,

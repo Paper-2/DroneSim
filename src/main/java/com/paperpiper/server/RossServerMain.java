@@ -3,11 +3,12 @@ package com.paperpiper.server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.paperpiper.ross.FrameData;
+
 /**
  * Standalone entrypoint for protocol server development/testing.
  *
- * Usage:
- *   RossServerMain [tcpPort] [droneCount]
+ * Usage: RossServerMain [tcpPort] [droneCount]
  */
 public final class RossServerMain {
 
@@ -20,21 +21,36 @@ public final class RossServerMain {
         int tcpPort = extractIntArg(args, 0, 5000);
         int droneCount = extractIntArg(args, 1, 1);
         boolean headless = hasFlag(args, "--headless");
+        boolean enableRos2 = hasFlag(args, "--ros2");
 
         SyntheticSimulationHardwareApi hardwareApi = new SyntheticSimulationHardwareApi(droneCount);
 
         RossSimulationServer server = new RossSimulationServer(
-            hardwareApi,
+                hardwareApi,
                 tcpPort,
                 20,
                 10
         );
 
-        Runtime.getRuntime().addShutdownHook(new Thread(server::stop));
+        Ros2Bridge ros2Bridge = enableRos2
+                ? new Ros2Bridge(hardwareApi, server.getCamera(), 20, 10)
+                : null;
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            server.stop();
+            if (ros2Bridge != null) {
+                ros2Bridge.close();
+            }
+        }));
 
         try {
             server.start();
-            logger.info("Server running. TCP port={}, drones={}. Press Ctrl+C to stop.", tcpPort, droneCount);
+            if (ros2Bridge != null) {
+                ros2Bridge.start();
+                logger.info("ROS2 bridge enabled");
+            }
+            logger.info("Server running. TCP port={}, drones={}, ros2={}. Press Ctrl+C to stop.",
+                    tcpPort, droneCount, enableRos2);
 
             if (!headless) {
                 runWithCameraWindow(server, hardwareApi);
@@ -47,6 +63,9 @@ public final class RossServerMain {
             logger.error("Server failed", ex);
         } finally {
             server.stop();
+            if (ros2Bridge != null) {
+                ros2Bridge.close();
+            }
         }
     }
 
@@ -60,7 +79,7 @@ public final class RossServerMain {
             String droneId = active != null ? active.getDroneId() : "drone-1";
             var telemetry = active != null ? active.readTelemetry() : null;
 
-            CameraFramePayload frame = server.getCamera().capture(droneId, telemetry, tick++);
+            FrameData frame = server.getCamera().capture(droneId, telemetry, tick++);
             window.render(frame);
 
             Thread.sleep(66L);

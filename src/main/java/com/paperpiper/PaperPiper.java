@@ -17,6 +17,8 @@ import com.paperpiper.physics.PhysicsWorld;
 import com.paperpiper.render.Camera;
 import com.paperpiper.render.Renderer;
 import com.paperpiper.render.Window;
+import com.paperpiper.server.LiveSimulationHardwareApi;
+import com.paperpiper.server.RossSimulationServer;
 import com.paperpiper.simulation.SimulationEngine;
 
 /**
@@ -35,10 +37,16 @@ public class PaperPiper {
     private boolean running = false;
     private boolean mouseCaptured = false;
 
+    // ROSS server integration (enabled with --server flag)
+    private boolean serverMode = false;
+    private RossSimulationServer rossServer;
+    private LiveSimulationHardwareApi liveHardwareApi;
+
     public static void main(String[] args) {
         logger.info("Starting PaperPiper Drone Simulator...");
 
         PaperPiper app = new PaperPiper();
+        app.parseArgs(args);
         try {
             app.init();
             app.run();
@@ -46,6 +54,14 @@ public class PaperPiper {
             logger.error("Fatal error in PaperPiper", e);
         } finally {
             app.cleanup();
+        }
+    }
+
+    private void parseArgs(String[] args) {
+        for (String arg : args) {
+            if ("--server".equals(arg)) {
+                serverMode = true;
+            }
         }
     }
 
@@ -66,6 +82,19 @@ public class PaperPiper {
         // Initialize simulation engine
         simulation = new SimulationEngine(physicsWorld);
         simulation.init();
+
+        // Start ROSS server if --server flag was given
+        if (serverMode) {
+            try {
+                liveHardwareApi = new LiveSimulationHardwareApi(simulation);
+                rossServer = new RossSimulationServer(liveHardwareApi, 5000, 20, 10);
+                rossServer.start();
+                logger.info("ROSS server started on port 5000");
+            } catch (Exception e) {
+                logger.error("Failed to start ROSS server", e);
+                rossServer = null;
+            }
+        }
 
         // Initialize controller input
         // controller = new GameController();
@@ -109,7 +138,13 @@ public class PaperPiper {
             // Render
             renderer.clear();
             simulation.render(renderer);
-            // renderer.render(); simulation.render() calls renderer.render() internally, so we don't need to call it here
+
+            // Capture framebuffer for ROSS streaming (after render, before swap)
+            if (rossServer != null && rossServer.isRunning()) {
+                liveHardwareApi.refreshDrones();
+                byte[] pixels = renderer.captureFramebuffer(window.getWidth(), window.getHeight());
+                rossServer.getCamera().supplyLiveFrame(pixels, window.getWidth(), window.getHeight());
+            }
 
             window.swapBuffers();
 
@@ -201,6 +236,10 @@ public class PaperPiper {
 
     private void cleanup() {
         logger.info("Cleaning up resources...");
+
+        if (rossServer != null) {
+            rossServer.stop();
+        }
 
         if (simulation != null) {
             simulation.cleanup();

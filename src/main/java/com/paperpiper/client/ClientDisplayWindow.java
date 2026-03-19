@@ -1,4 +1,4 @@
-package com.paperpiper.server;
+package com.paperpiper.client;
 
 import java.awt.image.BufferedImage;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -12,15 +12,16 @@ import javax.swing.WindowConstants;
 import com.paperpiper.ross.FrameData;
 
 /**
- * Lightweight preview window for the server camera stream.
+ * Client-side window that displays the camera frame stream received from the
+ * ROSS server. Essentially a video feed of the drone's camera.
  */
-public class ServerCameraWindow {
+public class ClientDisplayWindow {
 
     private final JFrame frame;
     private final JLabel imageLabel;
     private final AtomicBoolean open = new AtomicBoolean(true);
 
-    public ServerCameraWindow(String title) {
+    public ClientDisplayWindow(String title) {
         frame = new JFrame(title);
         imageLabel = new JLabel();
 
@@ -55,6 +56,10 @@ public class ServerCameraWindow {
     }
 
     public void render(FrameData framePayload) {
+        if (framePayload == null) {
+            return;
+        }
+
         BufferedImage image = toBufferedImage(framePayload);
 
         SwingUtilities.invokeLater(() -> {

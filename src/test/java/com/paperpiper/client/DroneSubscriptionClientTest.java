@@ -8,18 +8,23 @@ import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
+
+import com.paperpiper.ross.FrameData;
+import com.paperpiper.ross.TelemetryData;
 
 class DroneSubscriptionClientTest {
 
     @Test
     void subscribesAndDispatchesTelemetryAndFrames() throws IOException {
         FakeRossClient transport = new FakeRossClient();
+        transport.autoAckSubscribe = true;
         FakeFrameDatagramReceiver udpReceiver = new FakeFrameDatagramReceiver();
         DroneSubscriptionClient client = new DroneSubscriptionClient(transport, udpReceiver);
 
-        List<DroneTelemetry> telemetryEvents = new ArrayList<>();
-        List<SimulationFrame> frameEvents = new ArrayList<>();
+        List<TelemetryData> telemetryEvents = new ArrayList<>();
+        List<FrameData> frameEvents = new ArrayList<>();
 
         client.addTelemetryListener(telemetryEvents::add);
         client.addFrameListener(frameEvents::add);
@@ -48,7 +53,7 @@ class DroneSubscriptionClientTest {
         FakeFrameDatagramReceiver udpReceiver = new FakeFrameDatagramReceiver();
         DroneSubscriptionClient client = new DroneSubscriptionClient(transport, udpReceiver);
 
-        List<SimulationFrame> frameEvents = new ArrayList<>();
+        List<FrameData> frameEvents = new ArrayList<>();
         client.addFrameListener(frameEvents::add);
 
         client.connect("localhost", 9999);
@@ -60,12 +65,27 @@ class DroneSubscriptionClientTest {
         assertEquals(0, frameEvents.size());
     }
 
+    @Test
+    void throwsWhenSubscriptionIsRejected() {
+        FakeRossClient transport = new FakeRossClient();
+        transport.autoRejectSubscribe = true;
+        FakeFrameDatagramReceiver udpReceiver = new FakeFrameDatagramReceiver();
+        DroneSubscriptionClient client = new DroneSubscriptionClient(transport, udpReceiver);
+
+        assertThrows(IOException.class, () -> {
+            client.connect("localhost", 9999);
+            client.subscribeToDrone("no-such-drone");
+        });
+    }
+
     private static class FakeRossClient implements RossClient {
 
         private boolean connected;
         private Consumer<String> listener = message -> {
         };
         private final List<String> sentMessages = new ArrayList<>();
+        boolean autoAckSubscribe = false;
+        boolean autoRejectSubscribe = false;
 
         @Override
         public void connect(String host, int port) {
@@ -85,6 +105,14 @@ class DroneSubscriptionClientTest {
         @Override
         public void send(String message) {
             sentMessages.add(message);
+            if (message.startsWith("SUBSCRIBE|")) {
+                String droneId = message.substring("SUBSCRIBE|".length());
+                if (autoAckSubscribe) {
+                    new Thread(() -> listener.accept("OK|SUBSCRIBED|" + droneId)).start();
+                } else if (autoRejectSubscribe) {
+                    new Thread(() -> listener.accept("ERROR|UNKNOWN_DRONE|" + droneId)).start();
+                }
+            }
         }
 
         @Override

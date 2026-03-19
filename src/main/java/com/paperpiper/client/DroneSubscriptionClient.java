@@ -2,11 +2,19 @@ package com.paperpiper.client;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.paperpiper.ross.FrameData;
+import com.paperpiper.ross.RossCodec;
+import com.paperpiper.ross.TelemetryData;
 
 /**
  * High-level ROSS client that subscribes to a specific drone stream and handles
@@ -18,10 +26,11 @@ public class DroneSubscriptionClient {
 
     private final RossClient rossClient;
     private final FrameDatagramReceiver frameDatagramReceiver;
-    private final List<Consumer<DroneTelemetry>> telemetryListeners = new CopyOnWriteArrayList<>();
-    private final List<Consumer<SimulationFrame>> frameListeners = new CopyOnWriteArrayList<>();
+    private final List<Consumer<TelemetryData>> telemetryListeners = new CopyOnWriteArrayList<>();
+    private final List<Consumer<FrameData>> frameListeners = new CopyOnWriteArrayList<>();
     private final FrameStreamBuffer frameStreamBuffer = new FrameStreamBuffer();
     private volatile int frameUdpPort = -1;
+    private volatile CompletableFuture<String> pendingSubscription;
 
     public DroneSubscriptionClient(RossClient rossClient) {
         this(rossClient, new UdpFrameDatagramReceiver());
@@ -50,9 +59,32 @@ public class DroneSubscriptionClient {
         return rossClient.isConnected();
     }
 
+    /**
+     * Subscribes to a drone and waits for the server to confirm.
+     *
+     * @throws IOException if the subscription is rejected or the server does
+     * not respond within 5 seconds
+     */
     public void subscribeToDrone(String droneId) throws IOException {
+        pendingSubscription = new CompletableFuture<>();
         rossClient.send("SUBSCRIBE|" + droneId);
-        logger.info("Subscribed to drone {}", droneId);
+
+        try {
+            String result = pendingSubscription.get(5, TimeUnit.SECONDS);
+            if (result.startsWith("ERROR")) {
+                throw new IOException("Subscription rejected by server: " + result);
+            }
+            logger.info("Subscribed to drone {}", droneId);
+        } catch (TimeoutException ex) {
+            throw new IOException("Server did not respond to SUBSCRIBE within 5 seconds");
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Subscription interrupted", ex);
+        } catch (ExecutionException ex) {
+            throw new IOException("Subscription failed", ex.getCause());
+        } finally {
+            pendingSubscription = null;
+        }
     }
 
     public void unsubscribeFromDrone(String droneId) throws IOException {
@@ -86,19 +118,19 @@ public class DroneSubscriptionClient {
         return frameUdpPort;
     }
 
-    public void addTelemetryListener(Consumer<DroneTelemetry> listener) {
+    public void addTelemetryListener(Consumer<TelemetryData> listener) {
         telemetryListeners.add(listener);
     }
 
-    public void removeTelemetryListener(Consumer<DroneTelemetry> listener) {
+    public void removeTelemetryListener(Consumer<TelemetryData> listener) {
         telemetryListeners.remove(listener);
     }
 
-    public void addFrameListener(Consumer<SimulationFrame> listener) {
+    public void addFrameListener(Consumer<FrameData> listener) {
         frameListeners.add(listener);
     }
 
-    public void removeFrameListener(Consumer<SimulationFrame> listener) {
+    public void removeFrameListener(Consumer<FrameData> listener) {
         frameListeners.remove(listener);
     }
 
@@ -106,14 +138,29 @@ public class DroneSubscriptionClient {
         return frameStreamBuffer;
     }
 
+    public void sendManualControl(float throttle, float pitch, float roll, float yaw) throws IOException {
+        rossClient.send("MANUAL_CONTROL|" + throttle + "|" + pitch + "|" + roll + "|" + yaw);
+    }
+
+    public void sendArm(boolean armed) throws IOException {
+        rossClient.send("ARM|" + armed);
+    }
+
     private void onMessage(String message) {
-        RossMessageParser.parseTelemetry(message).ifPresent(telemetry -> {
+        // Handle subscription ack/error
+        CompletableFuture<String> pending = pendingSubscription;
+        if (pending != null && (message.startsWith("OK|SUBSCRIBED|") || message.startsWith("ERROR|UNKNOWN_DRONE|"))) {
+            pending.complete(message);
+            return;
+        }
+
+        RossCodec.decodeTelemetry(message).ifPresent(telemetry -> {
             telemetryListeners.forEach(listener -> listener.accept(telemetry));
         });
     }
 
     private void onFrameDatagram(String message) {
-        RossMessageParser.parseFrame(message).ifPresent(frame -> {
+        RossCodec.decodeFrame(message).ifPresent(frame -> {
             frameStreamBuffer.acceptFrame(frame);
             frameListeners.forEach(listener -> listener.accept(frame));
         });

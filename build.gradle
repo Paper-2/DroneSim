@@ -65,6 +65,9 @@ dependencies {
     // JOML - Math library for 3D graphics
     implementation "org.joml:joml:${jomlVersion}"
     
+    // ROS2 client
+    implementation 'io.github.lambdaprime:jros2client:12.0'
+    
     // Logging
     implementation 'org.slf4j:slf4j-api:2.0.9'
     implementation 'ch.qos.logback:logback-classic:1.4.14'
@@ -86,7 +89,7 @@ run {
 
 tasks.register('runRossServer', JavaExec) {
     group = 'application'
-    description = 'Run ROSS protocol server stub'
+    description = 'Run ROSS protocol server (TCP/UDP + optional ROS2 bridge)'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.paperpiper.server.RossServerMain'
     if (project.hasProperty('serverArgs')) {
@@ -98,7 +101,7 @@ tasks.register('runRossServer', JavaExec) {
 
 tasks.register('runRossClient', JavaExec) {
     group = 'application'
-    description = 'Run ROSS client'
+    description = 'Run ROSS client (TCP/UDP)'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.paperpiper.client.RossClientMain'
     if (project.hasProperty('clientArgs')) {
@@ -106,6 +109,14 @@ tasks.register('runRossClient', JavaExec) {
     } else {
         args('127.0.0.1', '5000', 'drone-1', '55000')
     }
+}
+
+tasks.register('runWithServer', JavaExec) {
+    group = 'application'
+    description = 'Run the full simulation with an embedded ROSS server on port 5000'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.paperpiper.PaperPiper'
+    args('--server')
 }
 
 test {
@@ -181,3 +192,4 @@ task downloadBulletNatives {
 jar.dependsOn downloadBulletNatives
 fatJar.dependsOn downloadBulletNatives
 run.dependsOn downloadBulletNatives
+runWithServer.dependsOn downloadBulletNatives

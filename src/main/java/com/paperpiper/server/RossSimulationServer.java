@@ -22,6 +22,8 @@ import org.slf4j.LoggerFactory;
 
 import com.paperpiper.hardware.DroneHardwareApi;
 import com.paperpiper.hardware.SimulationHardwareApi;
+import com.paperpiper.ross.FrameData;
+import com.paperpiper.ross.RossCodec;
 
 /**
  * TCP control/telemetry + UDP frame protocol server.
@@ -233,7 +235,31 @@ public class RossSimulationServer {
                     }
                 }
             }
-            default -> session.send("ERROR|UNKNOWN_COMMAND|" + parts[0]);
+            case "MANUAL_CONTROL" -> {
+                if (parts.length >= 5 && session.subscribedDroneId != null) {
+                    try {
+                        float throttle = Float.parseFloat(parts[1]);
+                        float cmdPitch = Float.parseFloat(parts[2]);
+                        float cmdRoll = Float.parseFloat(parts[3]);
+                        float cmdYaw = Float.parseFloat(parts[4]);
+                        hardwareApi.getDrone(session.subscribedDroneId).ifPresent(drone -> {
+                            drone.applyManualControl(
+                                    new com.paperpiper.hardware.ManualControlCommand(throttle, cmdPitch, cmdRoll, cmdYaw));
+                        });
+                    } catch (NumberFormatException ignored) {
+                        session.send("ERROR|INVALID_MANUAL_CONTROL");
+                    }
+                }
+            }
+            case "ARM" -> {
+                if (session.subscribedDroneId != null) {
+                    boolean armed = parts.length >= 2 && "true".equalsIgnoreCase(parts[1]);
+                    hardwareApi.getDrone(session.subscribedDroneId).ifPresent(drone -> drone.setArmed(armed));
+                    session.send("OK|ARM|" + armed);
+                }
+            }
+            default ->
+                session.send("ERROR|UNKNOWN_COMMAND|" + parts[0]);
         }
     }
 
@@ -274,7 +300,7 @@ public class RossSimulationServer {
             }
 
             hardwareApi.getDrone(session.subscribedDroneId).ifPresent(droneApi -> {
-                String telemetryMessage = RossMessageFormatter.telemetry(droneApi.readTelemetry());
+                String telemetryMessage = RossCodec.encodeTelemetry(droneApi.readTelemetry());
                 session.send(telemetryMessage);
             });
         }
@@ -287,17 +313,10 @@ public class RossSimulationServer {
 
         long tick = frameTick.incrementAndGet();
         var telemetry = hardwareApi.getDrone(droneId).map(DroneHardwareApi::readTelemetry).orElse(null);
-        CameraFramePayload frame = camera.capture(droneId, telemetry, tick);
-        String message = RossMessageFormatter.frame(
-            frame.droneId(),
-            frame.width(),
-            frame.height(),
-            frame.pixelFormat(),
-            frame.payload(),
-            frame.timestampMillis()
-        );
+        FrameData frame = camera.capture(droneId, telemetry, tick);
+        String message = RossCodec.encodeFrame(frame);
 
-        byte[] datagramData = RossMessageFormatter.utf8(message);
+        byte[] datagramData = RossCodec.utf8(message);
         DatagramPacket packet = new DatagramPacket(datagramData, datagramData.length, session.remoteAddress, session.udpPort);
 
         try {

@@ -1,12 +1,10 @@
 package com.paperpiper.client;
 
-import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -66,11 +64,12 @@ class ClientServerConnectionTest {
     }
 
     @Test
-    void subscriptionToUnknownDroneThrows() throws Exception {
+    void subscriptionToNewDroneSpawnsIt() throws Exception {
         DroneSubscriptionClient client = new DroneSubscriptionClient(new TcpRossClient());
         client.connect("127.0.0.1", TCP_PORT);
 
-        assertThrows(IOException.class, () -> client.subscribeToDrone("no-such-drone"));
+        // Server auto-spawns drones on subscribe — should not throw
+        client.subscribeToDrone("brand-new-drone");
 
         client.disconnect();
     }

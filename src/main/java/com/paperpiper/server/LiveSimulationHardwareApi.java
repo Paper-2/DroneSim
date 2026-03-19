@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import com.jme3.math.Vector3f;
 import com.paperpiper.drone.Drone;
 import com.paperpiper.hardware.DroneHardwareApi;
 import com.paperpiper.hardware.SimulationHardwareApi;
@@ -58,5 +59,21 @@ public class LiveSimulationHardwareApi implements SimulationHardwareApi {
             return Optional.empty();
         }
         return Optional.ofNullable(adapters.get(active));
+    }
+
+    @Override
+    public synchronized DroneHardwareApi spawnDrone(String droneId) {
+        // Return existing drone if already spawned
+        for (LiveDroneHardwareApi api : adapters.values()) {
+            if (api.getDroneId().equals(droneId)) {
+                return api;
+            }
+        }
+        // Create a new drone in the simulation
+        Drone drone = simulation.addDrone(new Vector3f(0, 2, 0));
+        drone.setMotorsArmed(true);
+        LiveDroneHardwareApi api = new LiveDroneHardwareApi(droneId, drone);
+        adapters.put(drone, api);
+        return api;
     }
 }

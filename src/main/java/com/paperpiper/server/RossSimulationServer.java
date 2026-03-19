@@ -165,12 +165,13 @@ public class RossSimulationServer {
             case "SUBSCRIBE" -> {
                 if (parts.length >= 2) {
                     String droneId = parts[1];
-                    if (hardwareApi.getDrone(droneId).isPresent()) {
-                        session.subscribedDroneId = droneId;
-                        session.send("OK|SUBSCRIBED|" + droneId);
-                    } else {
-                        session.send("ERROR|UNKNOWN_DRONE|" + droneId);
+                    // Spawn a drone on demand if it doesn't exist yet
+                    if (hardwareApi.getDrone(droneId).isEmpty()) {
+                        hardwareApi.spawnDrone(droneId);
+                        logger.info("Spawned drone '{}' for client", droneId);
                     }
+                    session.subscribedDroneId = droneId;
+                    session.send("OK|SUBSCRIBED|" + droneId);
                 }
             }
             case "UNSUBSCRIBE" -> {

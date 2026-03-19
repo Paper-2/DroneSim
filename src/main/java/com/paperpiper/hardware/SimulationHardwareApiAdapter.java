@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import com.jme3.math.Vector3f;
 import com.paperpiper.drone.Drone;
 import com.paperpiper.simulation.SimulationEngine;
 
@@ -64,5 +65,22 @@ public class SimulationHardwareApiAdapter implements SimulationHardwareApi {
             String droneId = droneIds.computeIfAbsent(drone, ignored -> "drone-" + nextDroneId++);
             adapters.computeIfAbsent(drone, ignored -> new SimulatedDroneHardwareApi(droneId, drone));
         }
+    }
+
+    @Override
+    public synchronized DroneHardwareApi spawnDrone(String droneId) {
+        syncDrones();
+        // Return existing if already present
+        for (SimulatedDroneHardwareApi api : adapters.values()) {
+            if (api.getDroneId().equals(droneId)) {
+                return api;
+            }
+        }
+        Drone drone = simulationEngine.addDrone(new Vector3f(0, 2, 0));
+        drone.setMotorsArmed(true);
+        droneIds.put(drone, droneId);
+        SimulatedDroneHardwareApi api = new SimulatedDroneHardwareApi(droneId, drone);
+        adapters.put(drone, api);
+        return api;
     }
 }

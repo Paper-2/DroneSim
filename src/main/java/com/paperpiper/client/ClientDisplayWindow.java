@@ -1,5 +1,7 @@
 package com.paperpiper.client;
 
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -27,8 +29,8 @@ public class ClientDisplayWindow {
 
         frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         frame.getContentPane().add(imageLabel);
-        frame.setSize(800, 480);
-        frame.setLocationByPlatform(true);
+        frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+        frame.setUndecorated(true);
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
             @Override
             public void windowClosed(java.awt.event.WindowEvent e) {
@@ -63,8 +65,17 @@ public class ClientDisplayWindow {
         BufferedImage image = toBufferedImage(framePayload);
 
         SwingUtilities.invokeLater(() -> {
-            imageLabel.setIcon(new ImageIcon(image));
-            frame.pack();
+            int screenW = frame.getWidth();
+            int screenH = frame.getHeight();
+            if (screenW <= 0 || screenH <= 0) {
+                return;
+            }
+            BufferedImage scaled = new BufferedImage(screenW, screenH, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = scaled.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.drawImage(image, 0, 0, screenW, screenH, null);
+            g.dispose();
+            imageLabel.setIcon(new ImageIcon(scaled));
             if (!frame.isVisible()) {
                 frame.setVisible(true);
             }

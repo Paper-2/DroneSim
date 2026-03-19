@@ -37,4 +37,9 @@ public class SyntheticSimulationHardwareApi implements SimulationHardwareApi {
     public Optional<DroneHardwareApi> getActiveDrone() {
         return drones.values().stream().findFirst();
     }
+
+    @Override
+    public DroneHardwareApi spawnDrone(String droneId) {
+        return drones.computeIfAbsent(droneId, id -> new SyntheticDroneHardwareApi(id));
+    }
 }

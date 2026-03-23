@@ -75,6 +75,10 @@ public class Drone {
     // flight controller (PID stabilization)
     private final DroneController controller = new DroneController();
 
+    public DroneController getController() {
+        return controller;
+    }
+
     // motors state
     private boolean motorsArmed = false;
 
@@ -402,6 +406,11 @@ public class Drone {
     public void setThrottle(float throttle) {
         this.throttle = Math.max(0, Math.min(1, throttle));
     }
+
+    public float getThrottle() { return throttle; }
+    public float getPitch()    { return pitch; }
+    public float getRoll()     { return roll; }
+    public float getYaw()      { return yaw; }
 
     public void setPitch(float pitch) {
         this.pitch = Math.max(-1, Math.min(1, pitch));

@@ -82,12 +82,8 @@ public class Window {
             this.resized = true;
         });
 
-        // Setup key callback
-        glfwSetKeyCallback(handle, (window, key, scancode, action, mods) -> {
-            if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
-                glfwSetWindowShouldClose(window, true);
-            }
-        });
+        // NOTE: ESC key callback removed — ImGui installs its own GLFW callbacks.
+        // ESC is handled via polling in PaperPiper.handleInput().
 
         // Center window
         try (MemoryStack stack = stackPush()) {

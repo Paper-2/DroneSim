@@ -45,6 +45,7 @@ public class SimulationEngine {
 
     private boolean paused = false;
     private float simulationTime = 0;
+    private float timeScale = 1.0f;
 
     public SimulationEngine(PhysicsWorld physicsWorld) {
         this.physicsWorld = physicsWorld;
@@ -248,6 +249,20 @@ public class SimulationEngine {
      */
     public float getSimulationTime() {
         return simulationTime;
+    }
+
+    /**
+     * Get time scale multiplier
+     */
+    public float getTimeScale() {
+        return timeScale;
+    }
+
+    /**
+     * Set time scale (clamped 0.1 to 5.0)
+     */
+    public void setTimeScale(float scale) {
+        this.timeScale = Math.max(0.1f, Math.min(5.0f, scale));
     }
 
     /**

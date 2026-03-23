@@ -18,6 +18,8 @@ import com.paperpiper.render.Camera;
 import com.paperpiper.render.Renderer;
 import com.paperpiper.render.Window;
 import com.paperpiper.simulation.SimulationEngine;
+import com.paperpiper.ui.UILayout;
+import com.paperpiper.ui.UIManager;
 
 /**
  * PaperPiper - Drone Simulator
@@ -30,6 +32,8 @@ public class PaperPiper {
     private Renderer renderer;
     private PhysicsWorld physicsWorld;
     private SimulationEngine simulation;
+    private UIManager uiManager;
+    private UILayout uiLayout;
     //private GameController controller;
 
     private boolean running = false;
@@ -67,6 +71,11 @@ public class PaperPiper {
         simulation = new SimulationEngine(physicsWorld);
         simulation.init();
 
+        // Initialize UI
+        uiManager = new UIManager();
+        uiManager.init(window.getHandle());
+        uiLayout = new UILayout();
+
         // Initialize controller input
         // controller = new GameController();
         // if (controller.isConnected()) {
@@ -100,16 +109,20 @@ public class PaperPiper {
             handleInput();
 
             while (delta >= 1) {
-                float dt = (float) (1.0 / targetFps);
+                float dt = (float) (1.0 / targetFps) * simulation.getTimeScale();
                 simulation.update(dt);
                 physicsWorld.stepSimulation(dt);
                 delta--;
             }
 
-            // Render
+            // Render 3D scene
             renderer.clear();
             simulation.render(renderer);
-            // renderer.render(); simulation.render() calls renderer.render() internally, so we don't need to call it here
+
+            // Render UI overlay (between scene and swap)
+            uiManager.beginFrame();
+            uiLayout.render(simulation, renderer, physicsWorld, window);
+            uiManager.endFrame();
 
             window.swapBuffers();
 
@@ -144,39 +157,46 @@ public class PaperPiper {
                 window.pollEvents();
             }
         }
-        // There should be a simpler way to record input. InputManager?
-        // Camera movement controls (WASD + Space/Ctrl) 
-        boolean forward = window.isKeyPressed(GLFW_KEY_W);
-        boolean backward = window.isKeyPressed(GLFW_KEY_S);
-        boolean left = window.isKeyPressed(GLFW_KEY_A);
-        boolean right = window.isKeyPressed(GLFW_KEY_D);
-        boolean up = window.isKeyPressed(GLFW_KEY_SPACE);
-        boolean down = window.isKeyPressed(GLFW_KEY_LEFT_CONTROL);
-        boolean sprint = window.isKeyPressed(GLFW_KEY_LEFT_SHIFT);
 
-        camera.processKeyboard(forward, backward, left, right, up, down, sprint, deltaTime);
+        // Gate keyboard input behind ImGui
+        if (!uiManager.isCapturingKeyboard()) {
+            // There should be a simpler way to record input. InputManager?
+            // Camera movement controls (WASD + Space/Ctrl) 
+            boolean forward = window.isKeyPressed(GLFW_KEY_W);
+            boolean backward = window.isKeyPressed(GLFW_KEY_S);
+            boolean left = window.isKeyPressed(GLFW_KEY_A);
+            boolean right = window.isKeyPressed(GLFW_KEY_D);
+            boolean up = window.isKeyPressed(GLFW_KEY_SPACE);
+            boolean down = window.isKeyPressed(GLFW_KEY_LEFT_CONTROL);
+            boolean sprint = window.isKeyPressed(GLFW_KEY_LEFT_SHIFT);
 
-        // Mouse look (only when captured)
-        if (mouseCaptured) {
-            camera.processMouseMovement(window.getMouseX(), window.getMouseY());
-        }
+            camera.processKeyboard(forward, backward, left, right, up, down, sprint, deltaTime);
 
-        // Close on ESC key
-        if (window.isKeyPressed(GLFW_KEY_ESCAPE)) {
-            if (mouseCaptured) {
-                mouseCaptured = false;
-                window.setCursorCaptured(false);
-            } else {
-                running = false;
+            // Close on ESC key
+            if (window.isKeyPressed(GLFW_KEY_ESCAPE)) {
+                if (mouseCaptured) {
+                    mouseCaptured = false;
+                    window.setCursorCaptured(false);
+                } else {
+                    running = false;
+                }
+            }
+
+            // Toggle collision shape visualization with F3
+            if (window.isKeyPressed(GLFW_KEY_F3)) {
+                simulation.toggleCollisionShapesVisible();
+                // Wait for key release to prevent rapid toggling
+                while (window.isKeyPressed(GLFW_KEY_F3)) {
+                    window.pollEvents();
+                }
             }
         }
 
-        // Toggle collision shape visualization with F3
-        if (window.isKeyPressed(GLFW_KEY_F3)) {
-            simulation.toggleCollisionShapesVisible();
-            // Wait for key release to prevent rapid toggling
-            while (window.isKeyPressed(GLFW_KEY_F3)) {
-                window.pollEvents();
+        // Gate mouse input behind ImGui
+        if (!uiManager.isCapturingMouse()) {
+            // Mouse look (only when captured)
+            if (mouseCaptured) {
+                camera.processMouseMovement(window.getMouseX(), window.getMouseY());
             }
         }
 
@@ -202,6 +222,12 @@ public class PaperPiper {
     private void cleanup() {
         logger.info("Cleaning up resources...");
 
+        if (uiLayout != null) {
+            uiLayout.cleanup();
+        }
+        if (uiManager != null) {
+            uiManager.cleanup();
+        }
         if (simulation != null) {
             simulation.cleanup();
         }

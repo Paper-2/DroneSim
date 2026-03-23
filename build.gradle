@@ -20,6 +20,7 @@ ext {
     lwjglVersion = '3.3.4'
     jomlVersion = '1.10.7'
     libbulletjmeVersion = '21.2.1'
+    imguiVersion = '1.86.11'
 }
 
 dependencies {
@@ -65,6 +66,13 @@ dependencies {
     // JOML - Math library for 3D graphics
     implementation "org.joml:joml:${jomlVersion}"
     
+    // ImGui - Immediate Mode GUI for overlays and debug panels
+    implementation "io.github.spair:imgui-java-binding:${imguiVersion}"
+    implementation "io.github.spair:imgui-java-lwjgl3:${imguiVersion}"
+    runtimeOnly "io.github.spair:imgui-java-natives-windows:${imguiVersion}"
+    runtimeOnly "io.github.spair:imgui-java-natives-linux:${imguiVersion}"
+    runtimeOnly "io.github.spair:imgui-java-natives-macos:${imguiVersion}"
+    
     // Logging
     implementation 'org.slf4j:slf4j-api:2.0.9'
     implementation 'ch.qos.logback:logback-classic:1.4.14'
@@ -108,7 +116,7 @@ tasks.register('fatJar', Jar) {
 }
 
 // Task to download Libbulletjme 
-task downloadBulletNatives {
+task downloadBulletNatives { 
     doLast {
         def os = System.getProperty("os.name").toLowerCase()
         def arch = System.getProperty("os.arch").toLowerCase()
@@ -154,6 +162,7 @@ task downloadBulletNatives {
     }
 }
 
+build.dependsOn downloadBulletNatives
 jar.dependsOn downloadBulletNatives
 fatJar.dependsOn downloadBulletNatives
 run.dependsOn downloadBulletNatives

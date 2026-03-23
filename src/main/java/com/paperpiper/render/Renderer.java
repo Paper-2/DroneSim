@@ -469,6 +469,10 @@ public class Renderer {
         return camera;
     }
 
+    public Matrix4f getProjectionMatrix() {
+        return projectionMatrix;
+    }
+
     public ShaderProgram getShaderProgram() {
         return shaderProgram;
     }

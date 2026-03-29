@@ -112,6 +112,10 @@ public class UILayout {
                 if (ImGui.menuItem("3D Labels", "", droneHUD.isVisible())) {
                     droneHUD.setVisible(!droneHUD.isVisible());
                 }
+                boolean isNight = UITheme.getMode() == UITheme.Mode.NIGHT;
+                if (ImGui.menuItem(isNight ? "\u2600 Light Mode" : "\u263E Night Mode")) {
+                    UITheme.toggle();
+                }
                 ImGui.endMenu();
             }
 
@@ -200,6 +204,7 @@ public class UILayout {
         ImGui.setNextWindowSize(LEFT_SIDEBAR_WIDTH, winH - menuH);
 
         if (ImGui.begin("##LeftSidebar", flags)) {
+            HexBackground.drawCurrentWindow();
             float availH = ImGui.getContentRegionAvailY();
 
             // ── Drone List ────────────────────────────────────────────────
@@ -252,7 +257,7 @@ public class UILayout {
 
         // Throttle
         ImGui.text("Throttle");
-        ImGui.progressBar(drone.getThrottle(), barW, 12,
+        ImGui.progressBar(drone.getThrottle(), barW, 16,
                 String.format("%.0f%%", drone.getThrottle() * 100));
 
         renderCenteredBar("Pitch", drone.getPitch(), barW);
@@ -274,19 +279,19 @@ public class UILayout {
         ImGui.popStyleColor();
 
         float mW = barW * 0.5f - 2;
-        ImGui.progressBar(drone.FL, mW, 10, "FL");
+        ImGui.progressBar(drone.FL, mW, 14, "FL");
         ImGui.sameLine();
-        ImGui.progressBar(drone.FR, mW, 10, "FR");
-        ImGui.progressBar(drone.RL, mW, 10, "RL");
+        ImGui.progressBar(drone.FR, mW, 14, "FR");
+        ImGui.progressBar(drone.RL, mW, 14, "RL");
         ImGui.sameLine();
-        ImGui.progressBar(drone.RR, mW, 10, "RR");
+        ImGui.progressBar(drone.RR, mW, 14, "RR");
     }
 
     private static void renderCenteredBar(String label, float value, float width) {
         ImGui.text(label);
         ImGui.sameLine(50);
         float normalized = (value + 1.0f) * 0.5f;
-        ImGui.progressBar(normalized, width - 50, 12, String.format("%+.2f", value));
+        ImGui.progressBar(normalized, width - 50, 16, String.format("%+.2f", value));
     }
 
     // Viewport Toolbar
@@ -300,6 +305,7 @@ public class UILayout {
         ImGui.setNextWindowSize(toolbarW, VIEWPORT_TOOLBAR_HEIGHT);
 
         if (ImGui.begin("##ViewportToolbar", flags)) {
+            HexBackground.drawCurrentWindow();
             ImGui.text("TRS:");
             ImGui.sameLine();
             if (ImGui.smallButton(trsMode == 0 ? "[T]" : " T ")) {
@@ -343,6 +349,7 @@ public class UILayout {
         ImGui.setNextWindowSize(bottomW, BOTTOM_PANEL_HEIGHT);
 
         if (ImGui.begin("##BottomPanel", flags)) {
+            HexBackground.drawCurrentWindow();
             float halfW = ImGui.getContentRegionAvailX() * 0.55f;
             float childH = ImGui.getContentRegionAvailY() - 22; // leave room for status
 
@@ -382,6 +389,7 @@ public class UILayout {
         ImGui.setNextWindowSize(RIGHT_SIDEBAR_WIDTH, winH - menuH);
 
         if (ImGui.begin("##RightSidebar", flags)) {
+            HexBackground.drawCurrentWindow();
             float availH = ImGui.getContentRegionAvailY();
 
             // Scene Manager (top ~55 %)

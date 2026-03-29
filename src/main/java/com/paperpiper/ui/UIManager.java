@@ -1,16 +1,23 @@
 package com.paperpiper.ui;
 
+import java.io.IOException;
+import java.io.InputStream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import imgui.ImFont;
+import imgui.ImFontConfig;
 import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * Central class that owns the ImGui context and handles its per-frame lifecycle.
- * Every other UI class renders within the frame that UIManager opens and closes.
+ * Central class that owns the ImGui context and handles its per-frame
+ * lifecycle. Every other UI class renders within the frame that UIManager opens
+ * and closes.
  */
 public class UIManager {
 
@@ -21,6 +28,7 @@ public class UIManager {
 
     /**
      * Initialize ImGui. Call AFTER the GL context is current.
+     *
      * @param windowHandle GLFW window handle from Window.getHandle()
      */
     public void init(long windowHandle) {
@@ -29,7 +37,9 @@ public class UIManager {
         ImGuiIO io = ImGui.getIO();
         io.addConfigFlags(ImGuiConfigFlags.DockingEnable);
 
-        ImGui.styleColorsDark();
+        loadMonocraftFont(io);
+
+        UITheme.apply();
 
         // Install GLFW callbacks — replaces existing key callback in Window.java
         imguiGlfw.init(windowHandle, true);
@@ -40,29 +50,58 @@ public class UIManager {
         logger.info("ImGui initialized (version: {})", ImGui.getVersion());
     }
 
-    /** Call at the START of each UI frame, before any ImGui widget code. */
+    private void loadMonocraftFont(ImGuiIO io) {
+        final String resourcePath = "/Fonts/Monocraft-nerd-fonts-patched.ttc";
+        try (InputStream is = getClass().getResourceAsStream(resourcePath)) {
+            if (is == null) {
+                logger.warn("Monocraft font not found at {}, using default font", resourcePath);
+                return;
+            }
+            byte[] fontData = is.readAllBytes();
+            ImFontConfig config = new ImFontConfig();
+            config.setFontDataOwnedByAtlas(false);
+            config.setName("Monocraft");
+            ImFont font = io.getFonts().addFontFromMemoryTTF(fontData, 16, config);
+            config.destroy();
+            logger.info("Loaded Monocraft font ({} bytes)", fontData.length);
+        } catch (IOException e) {
+            logger.warn("Failed to load Monocraft font: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Call at the START of each UI frame, before any ImGui widget code.
+     */
     public void beginFrame() {
         imguiGlfw.newFrame();
         ImGui.newFrame();
     }
 
-    /** Call at the END of each UI frame, after all ImGui widget code. */
+    /**
+     * Call at the END of each UI frame, after all ImGui widget code.
+     */
     public void endFrame() {
         ImGui.render();
         imguiGl3.renderDrawData(ImGui.getDrawData());
     }
 
-    /** True if ImGui wants the mouse (user is hovering/clicking a panel). */
+    /**
+     * True if ImGui wants the mouse (user is hovering/clicking a panel).
+     */
     public boolean isCapturingMouse() {
         return ImGui.getIO().getWantCaptureMouse();
     }
 
-    /** True if ImGui wants keyboard input (user is typing in a text field). */
+    /**
+     * True if ImGui wants keyboard input (user is typing in a text field).
+     */
     public boolean isCapturingKeyboard() {
         return ImGui.getIO().getWantCaptureKeyboard();
     }
 
-    /** Cleanup. Call BEFORE renderer and window cleanup. */
+    /**
+     * Cleanup. Call BEFORE renderer and window cleanup.
+     */
     public void cleanup() {
         imguiGl3.dispose();
         imguiGlfw.dispose();

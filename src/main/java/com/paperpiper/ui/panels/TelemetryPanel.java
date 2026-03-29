@@ -6,7 +6,8 @@ import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
 
 /**
- * Per-drone telemetry display: position, velocity, altitude, control inputs, motor state.
+ * Per-drone telemetry display: position, velocity, altitude, control inputs,
+ * motor state.
  */
 public class TelemetryPanel {
 
@@ -17,7 +18,9 @@ public class TelemetryPanel {
     private int lastDroneHash = 0;
 
     public void render(Drone drone) {
-        if (!visible || drone == null) return;
+        if (!visible || drone == null) {
+            return;
+        }
 
         ImGui.setNextWindowSize(280, 380, ImGuiCond.FirstUseEver);
         if (ImGui.begin("Telemetry")) {
@@ -38,13 +41,15 @@ public class TelemetryPanel {
             maxAltitude = Math.max(maxAltitude, altitude);
 
             // Position
-            ImGui.separator(); ImGui.text("Position");
+            ImGui.separator();
+            ImGui.text("Position");
             ImGui.text(String.format("X: %8.2f m", pos.x));
             ImGui.text(String.format("Y: %8.2f m", pos.y));
             ImGui.text(String.format("Z: %8.2f m", pos.z));
 
             // Altitude with color coding
-            ImGui.separator(); ImGui.text("Altitude");
+            ImGui.separator();
+            ImGui.text("Altitude");
             int altColor;
             if (altitude > 5.0f) {
                 altColor = ImGui.colorConvertFloat4ToU32(0.2f, 1.0f, 0.2f, 1.0f); // green
@@ -59,24 +64,27 @@ public class TelemetryPanel {
             ImGui.text(String.format("Min: %.2f  Max: %.2f", minAltitude, maxAltitude));
 
             // Velocity
-            ImGui.separator(); ImGui.text("Velocity");
+            ImGui.separator();
+            ImGui.text("Velocity");
             ImGui.text(String.format("Vx: %7.2f m/s", vel.x));
             ImGui.text(String.format("Vy: %7.2f m/s", vel.y));
             ImGui.text(String.format("Vz: %7.2f m/s", vel.z));
             ImGui.text(String.format("Speed: %.2f m/s", speed));
 
             // Control inputs
-            ImGui.separator(); ImGui.text("Controls");
+            ImGui.separator();
+            ImGui.text("Controls");
             ImGui.text("Throttle:");
             ImGui.sameLine();
-            ImGui.progressBar(drone.getThrottle(), 150, 14, String.format("%.0f%%", drone.getThrottle() * 100));
+            ImGui.progressBar(drone.getThrottle(), 150, 18, String.format("%.0f%%", drone.getThrottle() * 100));
 
             renderCenteredBar("Pitch", drone.getPitch());
             renderCenteredBar("Roll ", drone.getRoll());
             renderCenteredBar("Yaw  ", drone.getYaw());
 
             // Motor state
-            ImGui.separator(); ImGui.text("Motors");
+            ImGui.separator();
+            ImGui.text("Motors");
             if (drone.isMotorsArmed()) {
                 ImGui.pushStyleColor(ImGuiCol.Text, 0.2f, 1.0f, 0.2f, 1.0f);
                 ImGui.text("ARMED");
@@ -97,9 +105,14 @@ public class TelemetryPanel {
         ImGui.sameLine();
         // Map -1..1 to 0..1 for the progress bar
         float normalized = (value + 1.0f) * 0.5f;
-        ImGui.progressBar(normalized, 150, 14, String.format("%+.2f", value));
+        ImGui.progressBar(normalized, 150, 18, String.format("%+.2f", value));
     }
 
-    public boolean isVisible() { return visible; }
-    public void setVisible(boolean visible) { this.visible = visible; }
+    public boolean isVisible() {
+        return visible;
+    }
+
+    public void setVisible(boolean visible) {
+        this.visible = visible;
+    }
 }

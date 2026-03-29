@@ -166,3 +166,31 @@ build.dependsOn downloadBulletNatives
 jar.dependsOn downloadBulletNatives
 fatJar.dependsOn downloadBulletNatives
 run.dependsOn downloadBulletNatives
+
+task downloadMonocraftFont {
+    doLast {
+        def fontsDir = file("$buildDir/resources/main/Fonts")
+        fontsDir.mkdirs()
+
+        def fontFile = file("$fontsDir/Monocraft-nerd-fonts-patched.ttc")
+
+        if (!fontFile.exists()) {
+            def downloadUrl = "https://github.com/IdreesInc/Monocraft/releases/download/v4.2.1/Monocraft-nerd-fonts-patched.ttc"
+            println "Downloading Monocraft font from: $downloadUrl"
+
+            new URL(downloadUrl).withInputStream { input ->
+                fontFile.withOutputStream { output ->
+                    output << input
+                }
+            }
+            println "Downloaded font to: $fontFile"
+        } else {
+            println "Font already exists: $fontFile"
+        }
+    }
+}
+
+build.dependsOn downloadMonocraftFont
+jar.dependsOn downloadMonocraftFont
+fatJar.dependsOn downloadMonocraftFont
+run.dependsOn downloadMonocraftFont

@@ -192,12 +192,11 @@ public class PaperPiper {
             }
         }
 
-        // Gate mouse input behind ImGui
-        if (!uiManager.isCapturingMouse()) {
-            // Mouse look (only when captured)
-            if (mouseCaptured) {
-                camera.processMouseMovement(window.getMouseX(), window.getMouseY());
-            }
+        // skip ImGui hover gate
+        // to prevent the locked cursor from triggering UI hover/stutter.
+        if (mouseCaptured) {
+            camera.processMouseMovement(window.getMouseX(), window.getMouseY());
+        } else if (!uiManager.isCapturingMouse()) {
         }
 
         // Disabled because its not meant to be used. But it can be used if the need arises.

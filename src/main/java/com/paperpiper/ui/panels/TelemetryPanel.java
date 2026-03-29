@@ -10,7 +10,7 @@ import imgui.flag.ImGuiCond;
  */
 public class TelemetryPanel {
 
-    private boolean visible = true;
+    private boolean visible = false;
 
     private float minAltitude = Float.MAX_VALUE;
     private float maxAltitude = -Float.MAX_VALUE;

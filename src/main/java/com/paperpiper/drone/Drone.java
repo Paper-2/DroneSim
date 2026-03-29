@@ -398,6 +398,13 @@ public class Drone {
         return rigidBody.getLinearVelocity(null);
     }
 
+    public Quaternion getOrientation() {
+        if (rigidBody == null) {
+            return new Quaternion();
+        }
+        return rigidBody.getPhysicsRotation(null);
+    }
+
     // Gets the current linear acceleration 
     public Vector3f getAcceleration() {
         return acceleration;

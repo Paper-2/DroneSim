@@ -72,6 +72,30 @@ public class GraphPanel {
         ImGui.end();
     }
 
+    /** Render graphs inline (without own window). Used in the bottom panel tabs. */
+    public void renderEmbedded() {
+        float width = ImGui.getContentRegionAvailX();
+        float graphH = 30;
+
+        float[] altData = altitudeData.getOrderedData();
+        String altOvl = altData.length > 0 ? String.format("%.1f m", altData[altData.length - 1]) : "N/A";
+        ImGui.text("Alt");
+        ImGui.sameLine(40);
+        ImGui.plotLines("##alt_emb", altData, altData.length, 0, altOvl, 0, 50, width - 40, graphH);
+
+        float[] spdData = speedData.getOrderedData();
+        String spdOvl = spdData.length > 0 ? String.format("%.1f m/s", spdData[spdData.length - 1]) : "N/A";
+        ImGui.text("Spd");
+        ImGui.sameLine(40);
+        ImGui.plotLines("##spd_emb", spdData, spdData.length, 0, spdOvl, 0, 20, width - 40, graphH);
+
+        float[] thrData = throttleData.getOrderedData();
+        String thrOvl = thrData.length > 0 ? String.format("%.0f%%", thrData[thrData.length - 1] * 100) : "N/A";
+        ImGui.text("Thr");
+        ImGui.sameLine(40);
+        ImGui.plotLines("##thr_emb", thrData, thrData.length, 0, thrOvl, 0, 1, width - 40, graphH);
+    }
+
     public boolean isVisible() { return visible; }
     public void setVisible(boolean visible) { this.visible = visible; }
 }

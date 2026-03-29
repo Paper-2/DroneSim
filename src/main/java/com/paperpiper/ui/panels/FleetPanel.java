@@ -87,6 +87,22 @@ public class FleetPanel {
         ImGui.end();
     }
 
+    /** Compact list view for the left sidebar. */
+    public void renderCompact(SimulationEngine simulation) {
+        java.util.List<com.paperpiper.drone.Drone> drones = simulation.getDrones();
+        com.paperpiper.drone.Drone activeDrone = simulation.getActiveDrone();
+
+        for (int i = 0; i < drones.size(); i++) {
+            com.paperpiper.drone.Drone drone = drones.get(i);
+            boolean isActive = (drone == activeDrone);
+
+            String label = String.format("%s Drone %02d", isActive ? "\u25CF" : "\u25CB", i + 1);
+            if (ImGui.selectable(label, isActive)) {
+                simulation.setActiveDrone(drone);
+            }
+        }
+    }
+
     public boolean isVisible() { return visible; }
     public void setVisible(boolean visible) { this.visible = visible; }
 }

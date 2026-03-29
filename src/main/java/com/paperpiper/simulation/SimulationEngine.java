@@ -293,6 +293,33 @@ public class SimulationEngine {
         }
     }
 
+    public void clearAllDrones() {
+        List<Drone> copy = new ArrayList<>(drones);
+        for (Drone d : copy) {
+            removeDrone(d);
+        }
+    }
+
+
+    public void loadScene(SceneConfig config) {
+        logger.info("Loading scene '{}' ({} drone(s))", config.getName(), config.getDroneCount());
+
+        clearAllDrones();
+        flightPath.clear();
+        pathSampleTimer = 0f;
+        startPosition = null;
+        lastKnownTarget = null;
+        simulationTime = 0f;
+
+        for (Vector3f pos : config.getDroneSpawnPositions()) {
+            Drone d = addDrone(pos);
+            d.setMotorsArmed(true);
+        }
+        if (!drones.isEmpty()) {
+            setActiveDrone(drones.get(0));
+        }
+    }
+
     public void cleanup() {
         logger.info("Cleaning up simulation...");
 

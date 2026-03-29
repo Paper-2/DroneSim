@@ -121,7 +121,7 @@ public class PaperPiper {
 
             // Render UI overlay (between scene and swap)
             uiManager.beginFrame();
-            uiLayout.render(simulation, renderer, physicsWorld, window);
+            uiLayout.render(simulation, renderer, physicsWorld, window, 1.0f / 60.0f);
             uiManager.endFrame();
 
             window.swapBuffers();

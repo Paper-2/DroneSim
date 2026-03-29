@@ -40,11 +40,12 @@ public class DroneController {
     private float kdVelY = 0.05f;
 
     // =====================================================================
-    // Physics constants (must match Drone.java / PhysicsWorld)
+    // Physics constants (derived from propeller specs in Drone.java)
     // =====================================================================
     private static final float GRAVITY = 9.81f;  // m/s²
     private static final float DRONE_MASS = 1.5f;   // kg
-    private static final float TOTAL_MAX_THRUST = 4f * 5.0f;  // 4 motors × 5 N
+    // Total max thrust across all 4 motors, derived from propeller equation
+    private static final float TOTAL_MAX_THRUST = 4f * Drone.MAX_THRUST_PER_MOTOR;
     private static final float MAX_ACCEL_HORIZ = 6.0f;  // m/s² — 3D magnitude cap for desired accel
     // Fraction of max thrust budget available after motor-mixer overhead.
     // The throttle-priority mixer scales corrections instead of shifting
@@ -52,8 +53,9 @@ public class DroneController {
     // A small headroom avoids driving corrections to zero at max throttle.
     private static final float MIXER_HEADROOM = 0.85f;
 
-    // we may want to allow hover throttle to change in case we add payload.
-    private float hoverThrottle = DRONE_MASS * GRAVITY / TOTAL_MAX_THRUST; //
+    // Hover command accounts for quadratic thrust curve (T ∝ command²):
+    //   mg = TOTAL_MAX_THRUST × hoverCmd²  →  hoverCmd = sqrt(mg / T_max)
+    private float hoverThrottle = (float) Math.sqrt(DRONE_MASS * GRAVITY / TOTAL_MAX_THRUST);
 
     // PID gains
     private float kpRollAngle = 4.0f;
@@ -216,9 +218,10 @@ public class DroneController {
                     accelZ *= k;
                 }
                 totalY = accelY + GRAVITY;
-                throttle = clamp((DRONE_MASS * maxAccel) / TOTAL_MAX_THRUST, 0f, 1f);
+                // Quadratic thrust curve: cmd = sqrt(F / F_max)
+                throttle = clamp((float) Math.sqrt((DRONE_MASS * maxAccel) / TOTAL_MAX_THRUST), 0f, 1f);
             } else {
-                throttle = clamp((DRONE_MASS * accelMag) / TOTAL_MAX_THRUST, 0f, 1f);
+                throttle = clamp((float) Math.sqrt((DRONE_MASS * accelMag) / TOTAL_MAX_THRUST), 0f, 1f);
             }
 
             // Required tilt angles (small-angle: tilt = atan2(a_horiz, a_vert))

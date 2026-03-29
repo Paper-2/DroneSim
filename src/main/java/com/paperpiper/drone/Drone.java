@@ -38,9 +38,25 @@ public class Drone {
     private static final float DRONE_DEPTH = 0.5f;
      */
 
-    // motor
-    private static final float MAX_THRUST = 5.0f; // N (must overcome gravity + margin) 0.
+    // Propeller / motor specs — thrust is computed from the standard propeller
+    // equation: T = Ct × ρ × n² × D⁴  where n = RPM / 60 (revs per second).
+    static final float PROP_DIAMETER = 0.254f;        // m  (10-inch propeller)
+    static final float THRUST_COEFFICIENT = 0.072f;   // Ct (dimensionless, blade geometry)
+    static final float AIR_DENSITY = 1.225f;           // kg/m³ (sea-level ISA)
+    static final float MAX_MOTOR_RPM = 7200f;          // peak RPM at full command
+
+    // Pre-computed constant: Ct × ρ × D⁴  (multiply by n² to get thrust)
+    static final float THRUST_FACTOR = THRUST_COEFFICIENT * AIR_DENSITY
+            * (float) Math.pow(PROP_DIAMETER, 4);
+
+    // Derived max thrust per motor at full RPM (for reference / telemetry)
+    static final float MAX_THRUST_PER_MOTOR = THRUST_FACTOR
+            * (float) Math.pow(MAX_MOTOR_RPM / 60.0, 2);
+
     private static final float MAX_TORQUE = 5.0f;  // N⋅m
+
+    // Per-motor RPM (derived each frame from motor command)
+    private float rpmFL, rpmFR, rpmRL, rpmRR;
 
     // physics body
     private PhysicsRigidBody rigidBody;
@@ -338,12 +354,24 @@ public class Drone {
         RL = controller.getMotorRL();
         RR = controller.getMotorRR();
 
-        applyThrustAtPoint(frontLeftPropeller, FL * MAX_THRUST);
-        applyThrustAtPoint(frontRightPropeller, FR * MAX_THRUST);
-        applyThrustAtPoint(rearLeftPropeller, RL * MAX_THRUST);
-        applyThrustAtPoint(rearRightPropeller, RR * MAX_THRUST);
+        // Motor command (0-1) → RPM → Thrust via propeller equation
+        rpmFL = FL * MAX_MOTOR_RPM;
+        rpmFR = FR * MAX_MOTOR_RPM;
+        rpmRL = RL * MAX_MOTOR_RPM;
+        rpmRR = RR * MAX_MOTOR_RPM;
 
-        droneBody.updateModel(FL, FR, RL, RR, deltaTime);
+        // T = Ct × ρ × n² × D⁴  (n in revs/sec)
+        float nFL = rpmFL / 60f;
+        float nFR = rpmFR / 60f;
+        float nRL = rpmRL / 60f;
+        float nRR = rpmRR / 60f;
+
+        applyThrustAtPoint(frontLeftPropeller,  THRUST_FACTOR * nFL * nFL);
+        applyThrustAtPoint(frontRightPropeller, THRUST_FACTOR * nFR * nFR);
+        applyThrustAtPoint(rearLeftPropeller,   THRUST_FACTOR * nRL * nRL);
+        applyThrustAtPoint(rearRightPropeller,  THRUST_FACTOR * nRR * nRR);
+
+        droneBody.updateModel(rpmFL, rpmFR, rpmRL, rpmRR, deltaTime);
 
     }
 
@@ -404,6 +432,11 @@ public class Drone {
         }
         return rigidBody.getPhysicsRotation(null);
     }
+
+    public float getRpmFL() { return rpmFL; }
+    public float getRpmFR() { return rpmFR; }
+    public float getRpmRL() { return rpmRL; }
+    public float getRpmRR() { return rpmRR; }
 
     // Gets the current linear acceleration 
     public Vector3f getAcceleration() {

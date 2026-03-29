@@ -64,16 +64,8 @@ public class SimulationEngine {
         // Create render meshes
         groundMesh = Mesh.createPlane(10000f, 10000f); // Shouldn't be removed future me!
 
-        Drone drone = addDrone(new Vector3f(0, 2, 0));
-
-        drone.setMotorsArmed(true);
-
-        setActiveDrone(drones.get(0));
-
-        // Set controller to move active drone to (0, 10, 0)
-        setActiveDroneTargetPosition(new org.joml.Vector3f(0, 10, 0));
-
-        logger.info("Simulation initialized with {} drone(s)", drones.size());
+        // Scene starts empty — drones are spawned on demand when clients connect.
+        logger.info("Simulation initialized (no drones — waiting for clients)");
     }
 
     /**

@@ -300,7 +300,6 @@ public class SimulationEngine {
         }
     }
 
-
     public void loadScene(SceneConfig config) {
         logger.info("Loading scene '{}' ({} drone(s))", config.getName(), config.getDroneCount());
 
@@ -317,6 +316,10 @@ public class SimulationEngine {
         }
         if (!drones.isEmpty()) {
             setActiveDrone(drones.get(0));
+        }
+
+        if (config.getPostLoadHook() != null) {
+            config.getPostLoadHook().accept(this);
         }
     }
 

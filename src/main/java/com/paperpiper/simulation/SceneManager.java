@@ -7,11 +7,13 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.jme3.math.Vector3f;
+
 public class SceneManager {
 
     private static final Logger logger = LoggerFactory.getLogger(SceneManager.class);
 
-    private static final int BUILTIN_COUNT = 4;
+    private static final int BUILTIN_COUNT = 5;
 
     private final List<SceneConfig> scenes = new ArrayList<>();
     private SceneConfig currentScene;
@@ -30,6 +32,7 @@ public class SceneManager {
                 .addDroneAt(4, 2, 0)
                 .addDroneAt(0, 2, -4)
                 .addDroneAt(-4, 2, 0));
+        scenes.add(buildHilbertPatrolScene());
         currentScene = scenes.get(1);
     }
 
@@ -94,5 +97,37 @@ public class SceneManager {
     public boolean isBuiltin(SceneConfig scene) {
         int idx = scenes.indexOf(scene);
         return idx >= 0 && idx < BUILTIN_COUNT;
+    }
+
+
+    private static SceneConfig buildHilbertPatrolScene() {
+        final int DRONE_COUNT = 100;
+        final int CURVE_ORDER = 4;           // 256 waypoints
+        final float WORLD_SIZE = 100f;       // 100 × 100 m
+        final float ALTITUDE = 15f;        // spawn / patrol altitude
+
+        List<Vector3f> path = HilbertCurve.generate(CURVE_ORDER, WORLD_SIZE, WORLD_SIZE, ALTITUDE);
+        int pathSize = path.size();          // 256
+
+        SceneConfig scene = new SceneConfig(
+                "Hilbert Patrol (100)",
+                "100 drones patrolling a 100×100 m Hilbert curve at 15 m altitude");
+
+        // Spawn positions: evenly spaced along the Hilbert path
+        int stride = Math.max(1, pathSize / DRONE_COUNT);
+        for (int i = 0; i < DRONE_COUNT; i++) {
+            Vector3f spawnPos = path.get((i * stride) % pathSize);
+            scene.addDroneAt(spawnPos.x, spawnPos.y, spawnPos.z);
+        }
+
+        scene.setPostLoadHook(sim -> {
+            List<com.paperpiper.drone.Drone> drones = sim.getDrones();
+            for (int i = 0; i < drones.size(); i++) {
+                int startIndex = (i * stride) % pathSize;
+                drones.get(i).setWaypointQueue(path, startIndex);
+            }
+        });
+
+        return scene;
     }
 }

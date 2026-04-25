@@ -1,6 +1,7 @@
 package com.paperpiper.drone;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.joml.Matrix4f;
@@ -74,6 +75,11 @@ public class Drone {
 
     // flight controller (PID stabilization)
     private final DroneController controller = new DroneController();
+
+    // autonomous waypoint patrol queue
+    private static final float WAYPOINT_ARRIVAL_RADIUS = 3.0f;
+    private List<Vector3f> waypointQueue = Collections.emptyList();
+    private int waypointIndex = 0;
 
     public DroneController getController() {
         return controller;
@@ -345,6 +351,13 @@ public class Drone {
 
         droneBody.updateModel(FL, FR, RL, RR, deltaTime);
 
+        if (!waypointQueue.isEmpty()) {
+            Vector3f target = waypointQueue.get(waypointIndex);
+            if (position.distance(target) < WAYPOINT_ARRIVAL_RADIUS) {
+                waypointIndex = (waypointIndex + 1) % waypointQueue.size();
+                controller.setTargetPosition(waypointQueue.get(waypointIndex));
+            }
+        }
     }
 
     /**
@@ -414,10 +427,21 @@ public class Drone {
         this.throttle = Math.max(0, Math.min(1, throttle));
     }
 
-    public float getThrottle() { return throttle; }
-    public float getPitch()    { return pitch; }
-    public float getRoll()     { return roll; }
-    public float getYaw()      { return yaw; }
+    public float getThrottle() {
+        return throttle;
+    }
+
+    public float getPitch() {
+        return pitch;
+    }
+
+    public float getRoll() {
+        return roll;
+    }
+
+    public float getYaw() {
+        return yaw;
+    }
 
     public void setPitch(float pitch) {
         this.pitch = Math.max(-1, Math.min(1, pitch));
@@ -471,6 +495,31 @@ public class Drone {
     }
 
     /**
+     * Assigns a looping patrol route. The drone will cycle through
+     * {@code waypoints} indefinitely, advancing to the next point whenever it
+     * comes within {@value #WAYPOINT_ARRIVAL_RADIUS} metres of the current one.
+     *
+     * @param waypoints ordered list of world-space targets (must not be empty)
+     * @param startIndex index into {@code waypoints} where the drone begins
+     */
+    public void setWaypointQueue(List<Vector3f> waypoints, int startIndex) {
+        if (waypoints == null || waypoints.isEmpty()) {
+            return;
+        }
+        this.waypointQueue = new ArrayList<>(waypoints);
+        this.waypointIndex = ((startIndex % waypointQueue.size()) + waypointQueue.size()) % waypointQueue.size();
+        controller.setTargetPosition(waypointQueue.get(waypointIndex));
+    }
+
+    /**
+     * Removes the patrol route. The drone keeps its last target position.
+     */
+    public void clearWaypointQueue() {
+        waypointQueue = Collections.emptyList();
+        waypointIndex = 0;
+    }
+
+    /**
      * Enable / disable position hold without clearing the target.
      */
     public void setPositionHoldEnabled(boolean enabled) {
@@ -499,6 +548,8 @@ public class Drone {
             yaw = 0;
             previousVelocity.set(0, 0, 0);
             acceleration.set(0, 0, 0);
+            waypointQueue = Collections.emptyList();
+            waypointIndex = 0;
             controller.reset();
         }
     }

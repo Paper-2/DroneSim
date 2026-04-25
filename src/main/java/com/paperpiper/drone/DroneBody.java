@@ -48,16 +48,16 @@ public class DroneBody extends Model {
         rotateGroup("rotors_rear_right", 0, 180, 0);
     }
 
-    public void updateModel(float FL, float FR, float RL, float RR, float deltaTime) {
-        // Rotate the propellers based on time and throttle
-        // This is a simple approximation. You could make it more complex by factoring in actual RPM, acceleration, etc.
-        float RPM = 360.0f * deltaTime * 1.5f; // degrees per second at full throttle
-        
-        
+    public void updateModel(float rpmFL, float rpmFR, float rpmRL, float rpmRR, float deltaTime) {
+        // Rotate propellers based on actual RPM: degrees = RPM / 60 × 360 × dt
+        float degreesFL = rpmFL * 6f * deltaTime;
+        float degreesFR = rpmFR * 6f * deltaTime;
+        float degreesRL = rpmRL * 6f * deltaTime;
+        float degreesRR = rpmRR * 6f * deltaTime;
 
-        rotateMesh("cw_prop", 0, FL * RPM, 0);
-        rotateMesh("rotors_front_right_cw_prop", 0, FR * RPM , 0);
-        rotateMesh("rotors_rear_left_cw_prop", 0, RL * RPM, 0);
-        rotateMesh("rotors_rear_right_cw_prop", 0, RR * RPM, 0);
+        rotateMesh("cw_prop", 0, degreesFL, 0);
+        rotateMesh("rotors_front_right_cw_prop", 0, degreesFR, 0);
+        rotateMesh("rotors_rear_left_cw_prop", 0, degreesRL, 0);
+        rotateMesh("rotors_rear_right_cw_prop", 0, degreesRR, 0);
     }
 }

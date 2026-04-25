@@ -1,5 +1,6 @@
 package com.paperpiper;
 
+import org.joml.Vector3f;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_A;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_D;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE;
@@ -17,6 +18,8 @@ import com.paperpiper.physics.PhysicsWorld;
 import com.paperpiper.render.Camera;
 import com.paperpiper.render.Renderer;
 import com.paperpiper.render.Window;
+import com.paperpiper.server.LiveSimulationHardwareApi;
+import com.paperpiper.server.RossSimulationServer;
 import com.paperpiper.simulation.SimulationEngine;
 import com.paperpiper.ui.UILayout;
 import com.paperpiper.ui.UIManager;
@@ -39,10 +42,16 @@ public class PaperPiper {
     private boolean running = false;
     private boolean mouseCaptured = false;
 
+    // ROSS server integration (enabled with --server flag)
+    private boolean serverMode = false;
+    private RossSimulationServer rossServer;
+    private LiveSimulationHardwareApi liveHardwareApi;
+
     public static void main(String[] args) {
         logger.info("Starting PaperPiper Drone Simulator...");
 
         PaperPiper app = new PaperPiper();
+        app.parseArgs(args);
         try {
             app.init();
             app.run();
@@ -50,6 +59,14 @@ public class PaperPiper {
             logger.error("Fatal error in PaperPiper", e);
         } finally {
             app.cleanup();
+        }
+    }
+
+    private void parseArgs(String[] args) {
+        for (String arg : args) {
+            if ("--server".equals(arg)) {
+                serverMode = true;
+            }
         }
     }
 
@@ -75,6 +92,19 @@ public class PaperPiper {
         uiManager = new UIManager();
         uiManager.init(window.getHandle());
         uiLayout = new UILayout();
+
+        // Start ROSS server if --server flag was given
+        if (serverMode) {
+            try {
+                liveHardwareApi = new LiveSimulationHardwareApi(simulation);
+                rossServer = new RossSimulationServer(liveHardwareApi, 5000, 20, 10);
+                rossServer.start();
+                logger.info("ROSS server started on port 5000");
+            } catch (Exception e) {
+                logger.error("Failed to start ROSS server", e);
+                rossServer = null;
+            }
+        }
 
         // Initialize controller input
         // controller = new GameController();
@@ -123,6 +153,43 @@ public class PaperPiper {
             uiManager.beginFrame();
             uiLayout.render(simulation, renderer, physicsWorld, window, 1.0f / 60.0f);
             uiManager.endFrame();
+
+            // Capture per-client frames for ROSS streaming (each client's drone-following camera)
+            if (rossServer != null && rossServer.isRunning()) {
+                liveHardwareApi.processPendingSpawns();
+                liveHardwareApi.refreshDrones();
+
+                var clientViews = rossServer.getClientCameraViews();
+                if (!clientViews.isEmpty()) {
+                    Camera cam = renderer.getCamera();
+                    // Save spectator camera state
+                    Vector3f savedPos = new Vector3f(cam.getPosition());
+                    float savedYaw = cam.getYaw();
+                    float savedPitch = cam.getPitch();
+
+                    for (var view : clientViews) {
+                        cam.setPosition(new Vector3f(view.camX(), view.camY(), view.camZ()));
+                        cam.setYaw(view.camYaw());
+                        cam.setPitch(view.camPitch());
+
+                        renderer.clear();
+                        simulation.render(renderer);
+
+                        byte[] pixels = renderer.captureFramebuffer(
+                                window.getWidth(), window.getHeight());
+                        rossServer.supplyClientFrame(
+                                view.sessionIndex(), pixels,
+                                window.getWidth(), window.getHeight());
+                    }
+
+                    // Restore spectator camera and re-render for the window
+                    cam.setPosition(savedPos);
+                    cam.setYaw(savedYaw);
+                    cam.setPitch(savedPitch);
+                    renderer.clear();
+                    simulation.render(renderer);
+                }
+            }
 
             window.swapBuffers();
 
@@ -227,6 +294,11 @@ public class PaperPiper {
         if (uiManager != null) {
             uiManager.cleanup();
         }
+
+        if (rossServer != null) {
+            rossServer.stop();
+        }
+
         if (simulation != null) {
             simulation.cleanup();
         }

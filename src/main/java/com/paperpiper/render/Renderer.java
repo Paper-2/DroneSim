@@ -367,8 +367,8 @@ public class Renderer {
     }
 
     /**
-     * Render a 3D line between two world-space points.
-     * Must be called between render() and endRender()
+     * Render a 3D line between two world-space points. Must be called between
+     * render() and endRender()
      */
     public void renderLine(Vector3f from, Vector3f to, Vector3f color) {
         // Lazy-init the reusable line VAO/VBO once
@@ -391,8 +391,8 @@ public class Renderer {
 
         // Upload the two endpoints (interleaved: pos + dummy normal)
         float[] data = {
-            from.x, from.y, from.z,  0f, 1f, 0f,
-            to.x,   to.y,   to.z,    0f, 1f, 0f
+            from.x, from.y, from.z, 0f, 1f, 0f,
+            to.x, to.y, to.z, 0f, 1f, 0f
         };
         glBindBuffer(GL_ARRAY_BUFFER, lineVboId);
         glBufferData(GL_ARRAY_BUFFER, data, GL_DYNAMIC_DRAW);
@@ -410,6 +410,7 @@ public class Renderer {
         glEnable(GL_CULL_FACE);
 
     }
+
     // Render a line .
     public void renderLineStrip(List<Vector3f> points, Vector3f color) {
         if (points == null || points.size() < 2) {
@@ -439,7 +440,7 @@ public class Renderer {
         for (int i = 0; i < n; i++) {
             Vector3f p = points.get(i);
             int off = i * 6;
-            data[off]     = p.x;
+            data[off] = p.x;
             data[off + 1] = p.y;
             data[off + 2] = p.z;
             data[off + 3] = 0f;
@@ -463,6 +464,32 @@ public class Renderer {
 
     public void endRender() {
         shaderProgram.unbind();
+    }
+
+    /**
+     * Capture the current framebuffer contents as RGBA pixel data. Must be
+     * called after rendering and before swapBuffers.
+     */
+    public byte[] captureFramebuffer(int width, int height) {
+        java.nio.ByteBuffer buffer = org.lwjgl.BufferUtils.createByteBuffer(width * height * 4);
+        org.lwjgl.opengl.GL11.glReadPixels(0, 0, width, height,
+                org.lwjgl.opengl.GL11.GL_RGBA, org.lwjgl.opengl.GL11.GL_UNSIGNED_BYTE, buffer);
+
+        byte[] pixels = new byte[width * height * 4];
+        buffer.get(pixels);
+
+        // OpenGL reads bottom-to-top; flip vertically
+        int rowBytes = width * 4;
+        byte[] temp = new byte[rowBytes];
+        for (int i = 0; i < height / 2; i++) {
+            int topOffset = i * rowBytes;
+            int botOffset = (height - 1 - i) * rowBytes;
+            System.arraycopy(pixels, topOffset, temp, 0, rowBytes);
+            System.arraycopy(pixels, botOffset, pixels, topOffset, rowBytes);
+            System.arraycopy(temp, 0, pixels, botOffset, rowBytes);
+        }
+
+        return pixels;
     }
 
     public Camera getCamera() {

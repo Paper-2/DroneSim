@@ -1,7 +1,5 @@
 package com.paperpiper.ross;
 
-import java.util.Base64;
-
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -26,8 +24,8 @@ class RossCodecTest {
     @Test
     void decodesFrameMessage() {
         byte[] payload = new byte[]{1, 2, 3, 4};
-        String base64 = Base64.getEncoder().encodeToString(payload);
-        String message = "FRAME|drone-2|640|480|RGBA8|" + base64 + "|1710000000123";
+        // Use the encoder to properly compress and encode the payload
+        String message = RossCodec.encodeFrame("drone-2", 640, 480, "RGBA8", payload, 1710000000123L);
 
         var frame = RossCodec.decodeFrame(message);
 

@@ -129,6 +129,15 @@ tasks.register('runWithServer', JavaExec) {
 
 test {
     useJUnitPlatform()
+    
+
+    jvmArgs = [
+        '-Djava.awt.headless=true',
+        '-Dorg.lwjgl.glfw.Window=false',
+        '-Dopengl.allowSoftwareRenderer=true'
+    ]
+    
+    forkEvery = 1  // Fork a new JVM for each test to prevent cascading crashes
 }
 
 jar {

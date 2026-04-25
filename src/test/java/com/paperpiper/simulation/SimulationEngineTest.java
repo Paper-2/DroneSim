@@ -48,6 +48,13 @@ class SimulationEngineTest {
         }
     }
 
+    private Drone spawnAndActivateDrone() {
+        Drone drone = engine.addDrone(new Vector3f(0f, 2f, 0f));
+        drone.setMotorsArmed(true);
+        engine.setActiveDrone(drone);
+        return drone;
+    }
+
     @Test
     void testDroneReachesTargetPosition() {
         // --- Bootstrap the same stack the real app uses (headless for tests) ---
@@ -64,7 +71,7 @@ class SimulationEngineTest {
         engine.init(); // loads DroneBody model, creates ground mesh, arms motors
 
         // Verify setup
-        Drone activeDrone = engine.getActiveDrone();
+        Drone activeDrone = spawnAndActivateDrone();
         assertNotNull(activeDrone, "Active drone should be initialized");
         assertTrue(activeDrone.isMotorsArmed(), "Motors should be armed");
 
@@ -176,7 +183,7 @@ class SimulationEngineTest {
         engine.init(); // loads DroneBody model, creates ground mesh, arms motors
 
         // Verify setup
-        Drone activeDrone = engine.getActiveDrone();
+        Drone activeDrone = spawnAndActivateDrone();
         assertNotNull(activeDrone, "Active drone should be initialized");
         assertTrue(activeDrone.isMotorsArmed(), "Motors should be armed");
 
@@ -291,7 +298,7 @@ class SimulationEngineTest {
         engine = new SimulationEngine(physicsWorld);
         engine.init();
 
-        Drone activeDrone = engine.getActiveDrone();
+        Drone activeDrone = spawnAndActivateDrone();
         assertNotNull(activeDrone, "Active drone should be initialized");
         assertTrue(activeDrone.isMotorsArmed(), "Motors should be armed");
 
@@ -460,7 +467,7 @@ class SimulationEngineTest {
         engine = new SimulationEngine(physicsWorld);
         engine.init();
 
-        Drone activeDrone = engine.getActiveDrone();
+        Drone activeDrone = spawnAndActivateDrone();
         assertNotNull(activeDrone, "Active drone should be initialized");
         assertTrue(activeDrone.isMotorsArmed(), "Motors should be armed");
 
@@ -594,7 +601,7 @@ class SimulationEngineTest {
         engine = new SimulationEngine(physicsWorld);
         engine.init();
 
-        Drone activeDrone = engine.getActiveDrone();
+        Drone activeDrone = spawnAndActivateDrone();
         assertNotNull(activeDrone, "Active drone should be initialized");
         assertTrue(activeDrone.isMotorsArmed(), "Motors should be armed");
 
@@ -784,7 +791,7 @@ class SimulationEngineTest {
         engine = new SimulationEngine(physicsWorld);
         engine.init();
 
-        Drone activeDrone = engine.getActiveDrone();
+        Drone activeDrone = spawnAndActivateDrone();
         assertNotNull(activeDrone, "Active drone should be initialized");
 
         // Start the drone high and reset state, then arm motors
@@ -835,7 +842,7 @@ class SimulationEngineTest {
         engine = new SimulationEngine(physicsWorld);
         engine.init();
 
-        Drone d = engine.getActiveDrone();
+        Drone d = spawnAndActivateDrone();
         assertNotNull(d, "Active drone should be initialized");
         assertTrue(d.isMotorsArmed(), "Motors should be armed by default in the sim init");
 

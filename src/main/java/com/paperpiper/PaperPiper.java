@@ -150,6 +150,7 @@ public class PaperPiper {
             simulation.render(renderer);
 
             // Render UI overlay (between scene and swap)
+            uiManager.setMousePassthrough(mouseCaptured);
             uiManager.beginFrame();
             uiLayout.render(simulation, renderer, physicsWorld, window, 1.0f / 60.0f);
             uiManager.endFrame();

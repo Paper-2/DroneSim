@@ -20,6 +20,12 @@ compileJava {
     options.encoding = 'UTF-8'
 }
 
+tasks.named('test').configure {
+    // Language servers triggers while doing running the diff algorithm. 
+    // slows down my VS code :( 
+    onlyIf { gradle.startParameter.taskNames.any { it == 'test' || it == ':test' } }
+}
+
 repositories {
     mavenCentral()
 }

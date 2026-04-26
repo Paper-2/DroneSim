@@ -2,38 +2,50 @@ package com.paperpiper.simulation;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.jme3.math.Vector3f;
+import com.paperpiper.simulation.scenes.SceneFactory;
 
 public class SceneManager {
 
     private static final Logger logger = LoggerFactory.getLogger(SceneManager.class);
 
-    private static final int BUILTIN_COUNT = 5;
-
     private final List<SceneConfig> scenes = new ArrayList<>();
+    private final Set<SceneConfig> builtinScenes = new HashSet<>();
     private SceneConfig currentScene;
     private boolean modified = false;
 
     public SceneManager() {
-        scenes.add(new SceneConfig("Empty", "No drones - blank slate"));
-        scenes.add(new SceneConfig("Single Hover", "One drone hovering at origin")
+        // Inline scenes — simple enough to not warrant their own class
+        addBuiltin(new SceneConfig("Empty", "No drones - blank slate"));
+        addBuiltin(new SceneConfig("Single Hover", "One drone hovering at origin")
                 .addDroneAt(0, 2, 0));
-        scenes.add(new SceneConfig("Swarm (3)", "Three drones in a row")
+        addBuiltin(new SceneConfig("Swarm (3)", "Three drones in a row")
                 .addDroneAt(-4, 2, 0)
                 .addDroneAt(0, 2, 0)
                 .addDroneAt(4, 2, 0));
-        scenes.add(new SceneConfig("Diamond (4)", "Four drones in a diamond")
+        addBuiltin(new SceneConfig("Diamond (4)", "Four drones in a diamond")
                 .addDroneAt(0, 2, 4)
                 .addDroneAt(4, 2, 0)
                 .addDroneAt(0, 2, -4)
                 .addDroneAt(-4, 2, 0));
-        scenes.add(buildHilbertPatrolScene());
+
+        // Discover scenes declared in SceneFactory's sealed permits clause
+        for (SceneConfig cfg : SceneFactory.buildAll()) {
+            addBuiltin(cfg);
+        }
+
         currentScene = scenes.get(1);
+    }
+
+    private void addBuiltin(SceneConfig cfg) {
+        scenes.add(cfg);
+        builtinScenes.add(cfg);
     }
 
     public List<SceneConfig> getScenes() {
@@ -60,15 +72,14 @@ public class SceneManager {
     }
 
     public boolean deleteScene(SceneConfig scene) {
-        int idx = scenes.indexOf(scene);
-        if (idx < 0) {
+        if (!scenes.contains(scene)) {
             return false;
         }
-        if (idx < BUILTIN_COUNT) {
+        if (builtinScenes.contains(scene)) {
             logger.warn("Cannot delete built-in scene '{}'", scene.getName());
             return false;
         }
-        scenes.remove(idx);
+        scenes.remove(scene);
         if (currentScene == scene) {
             currentScene = scenes.get(0);
         }
@@ -95,39 +106,7 @@ public class SceneManager {
     }
 
     public boolean isBuiltin(SceneConfig scene) {
-        int idx = scenes.indexOf(scene);
-        return idx >= 0 && idx < BUILTIN_COUNT;
+        return builtinScenes.contains(scene);
     }
 
-
-    private static SceneConfig buildHilbertPatrolScene() {
-        final int DRONE_COUNT = 100;
-        final int CURVE_ORDER = 4;           // 256 waypoints
-        final float WORLD_SIZE = 100f;       // 100 × 100 m
-        final float ALTITUDE = 15f;        // spawn / patrol altitude
-
-        List<Vector3f> path = HilbertCurve.generate(CURVE_ORDER, WORLD_SIZE, WORLD_SIZE, ALTITUDE);
-        int pathSize = path.size();          // 256
-
-        SceneConfig scene = new SceneConfig(
-                "Hilbert Patrol (100)",
-                "100 drones patrolling a 100×100 m Hilbert curve at 15 m altitude");
-
-        // Spawn positions: evenly spaced along the Hilbert path
-        int stride = Math.max(1, pathSize / DRONE_COUNT);
-        for (int i = 0; i < DRONE_COUNT; i++) {
-            Vector3f spawnPos = path.get((i * stride) % pathSize);
-            scene.addDroneAt(spawnPos.x, spawnPos.y, spawnPos.z);
-        }
-
-        scene.setPostLoadHook(sim -> {
-            List<com.paperpiper.drone.Drone> drones = sim.getDrones();
-            for (int i = 0; i < drones.size(); i++) {
-                int startIndex = (i * stride) % pathSize;
-                drones.get(i).setWaypointQueue(path, startIndex);
-            }
-        });
-
-        return scene;
-    }
 }

@@ -62,6 +62,8 @@ public class ScenePanel {
 
                 if (ImGui.isItemClicked()) {
                     sceneManager.setCurrentScene(cfg);
+                    simulation.loadScene(cfg);
+                    flash("Loaded: " + cfg.getName());
                 }
 
                 if (ImGui.isItemHovered()) {

@@ -17,9 +17,8 @@ import com.paperpiper.render.Renderer;
 import com.paperpiper.render.Window;
 
 /**
- * Integration test for SimulationEngine — loads the drone model, renders
- * frames, and verifies the controller moves the drone toward a random target
- * position.
+ * Integration test for SimulationEngine loads the drone model, renders frames,
+ * and verifies the controller moves the drone toward a random target position.
  */
 class SimulationEngineTest {
 
@@ -152,8 +151,8 @@ class SimulationEngineTest {
 
         System.out.println("Final drone position: " + pos);
         System.out.println("Final drone velocity: " + vel);
-        System.out.printf("Distance from target — start: %.3f  final: %.3f%n", startDistance, finalDistance);
-        System.out.printf("Per-axis distance — X: %.3f  Y: %.3f  Z: %.3f%n",
+        System.out.printf("Distance from target  start: %.3f  final: %.3f%n", startDistance, finalDistance);
+        System.out.printf("Per-axis distance  X: %.3f  Y: %.3f  Z: %.3f%n",
                 Math.abs(pos.x - target.x), Math.abs(pos.y - target.y), Math.abs(pos.z - target.z));
         System.out.printf("Speed: %.3f m/s%n", speed);
 
@@ -264,8 +263,8 @@ class SimulationEngineTest {
 
         System.out.println("Final drone position: " + pos);
         System.out.println("Final drone velocity: " + vel);
-        System.out.printf("Distance from target — start: %.3f  final: %.3f%n", startDistance, finalDistance);
-        System.out.printf("Per-axis distance — X: %.3f  Y: %.3f  Z: %.3f%n",
+        System.out.printf("Distance from target  start: %.3f  final: %.3f%n", startDistance, finalDistance);
+        System.out.printf("Per-axis distance  X: %.3f  Y: %.3f  Z: %.3f%n",
                 Math.abs(pos.x - target.x), Math.abs(pos.y - target.y), Math.abs(pos.z - target.z));
         System.out.printf("Speed: %.3f m/s%n", speed);
 
@@ -280,7 +279,7 @@ class SimulationEngineTest {
     }
 
     /**
-     * Set two random target positions sequentially — once the drone reaches the
+     * Set two random target positions sequentially once the drone reaches the
      * first target, assign the second and verify it reaches that too.
      */
     @Test
@@ -645,7 +644,7 @@ class SimulationEngineTest {
             Vector3f target = waypoints[leg];
 
             // Between legs, let the drone settle for 2 seconds so it starts
-            // each new leg from rest — otherwise residual momentum from the
+            // each new leg from rest  otherwise residual momentum from the
             // previous heading causes a large initial curve.
             if (leg > 0) {
                 int settleSteps = (int) (2.0f / dt);
@@ -661,7 +660,7 @@ class SimulationEngineTest {
                     }
                 }
                 float settleSpeed = activeDrone.getRigidBody().getLinearVelocity(null).length();
-                System.out.printf("  Settled before leg %d — speed=%.3f m/s%n", leg + 1, settleSpeed);
+                System.out.printf("  Settled before leg %d  speed=%.3f m/s%n", leg + 1, settleSpeed);
             }
 
             // Record starting position AFTER settling
@@ -749,7 +748,7 @@ class SimulationEngineTest {
 
             float avgDev = count > 0 ? (float) (sumDev / count) : 0f;
 
-            System.out.printf("  Leg %d results — samples: %d  maxDev: %.4f m  avgDev: %.4f m%n",
+            System.out.printf("  Leg %d results  samples: %d  maxDev: %.4f m  avgDev: %.4f m%n",
                     leg + 1, count, maxDev, avgDev);
 
             // --- Assertions per leg ---

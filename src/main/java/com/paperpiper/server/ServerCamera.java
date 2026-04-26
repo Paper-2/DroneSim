@@ -12,10 +12,10 @@ import com.paperpiper.ross.FrameData;
  * <p>
  * Supports two modes:
  * <ul>
- * <li><b>Live mode</b> — call {@link #supplyLiveFrame(byte[], int, int)} from
- * the render thread to feed real framebuffer pixels. Subsequent
- * {@link #capture} calls return those pixels.</li>
- * <li><b>Synthetic mode</b> (default) — if no live frame has been supplied,
+ * <li><b>Live mode</b> call {@link #supplyLiveFrame(byte[], int, int)} from the
+ * render thread to feed real framebuffer pixels. Subsequent {@link #capture}
+ * calls return those pixels.</li>
+ * <li><b>Synthetic mode</b> (default) if no live frame has been supplied,
  * {@link #capture} generates a procedural colour pattern.</li>
  * </ul>
  */

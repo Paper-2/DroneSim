@@ -91,7 +91,7 @@ public class ClientDisplayWindow {
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 
         if ("GRAY8".equals(format)) {
-            // Single-channel grayscale — expand to R=G=B=gray, A=255.
+            // Single-channel grayscale  expand to R=G=B=gray, A=255.
             // Compressed with ZLIB + grayscale to cut UDP payload size.
             // Grayscale uses ITU-R BT.601 luma on the server side.
             int index = 0;

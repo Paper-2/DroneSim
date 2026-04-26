@@ -11,7 +11,7 @@ import com.paperpiper.hardware.DroneTelemetrySample;
 import com.paperpiper.hardware.HardwareVector3;
 
 /**
- * Unified ROSS protocol codec — encodes server-side types to wire format and
+ * Unified ROSS protocol codec encodes server-side types to wire format and
  * decodes wire-format strings back into shared DTOs.
  *
  * <p>

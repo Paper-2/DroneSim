@@ -19,8 +19,6 @@ public class CirclePatrolBehavior implements DroneBehavior {
 
     private float currentAngle; // radians
 
-
-    
     public CirclePatrolBehavior(Vector3f center, float radius,
             float angularSpeedRad, float initialAngleDeg) {
         this.center = new Vector3f(center);
@@ -30,7 +28,7 @@ public class CirclePatrolBehavior implements DroneBehavior {
     }
 
     /**
-     * Convenience constructor — starts at 0 degrees.
+     * Convenience constructor starts at 0 degrees.
      */
     public CirclePatrolBehavior(Vector3f center, float radius, float angularSpeedRad) {
         this(center, radius, angularSpeedRad, 0f);

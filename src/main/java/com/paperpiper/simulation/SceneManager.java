@@ -21,7 +21,7 @@ public class SceneManager {
     private boolean modified = false;
 
     public SceneManager() {
-        // Inline scenes — simple enough to not warrant their own class
+        // Inline scenes  simple enough to not warrant their own class
         addBuiltin(new SceneConfig("Empty", "No drones - blank slate"));
         addBuiltin(new SceneConfig("Single Hover", "One drone hovering at origin")
                 .addDroneAt(0, 2, 0));

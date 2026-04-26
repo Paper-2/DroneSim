@@ -64,8 +64,8 @@ public class SimulationEngine {
         // Create render meshes
         groundMesh = Mesh.createPlane(10000f, 10000f); // Shouldn't be removed future me!
 
-        // Scene starts empty — drones are spawned on demand when clients connect.
-        logger.info("Simulation initialized (no drones — waiting for clients)");
+        // Scene starts empty  drones are spawned on demand when clients connect.
+        logger.info("Simulation initialized (no drones  waiting for clients)");
     }
 
     /**
@@ -84,7 +84,7 @@ public class SimulationEngine {
 
         // Record flight path of active drone at regular intervals
         if (activeDrone != null) {
-            // Detect target changes — update the yellow-line origin to the
+            // Detect target changes  update the yellow-line origin to the
             // previous target (or the drone's current position for the first target).
             Vector3f currentTarget = activeDrone.getTargetPosition();
             if (currentTarget != null) {

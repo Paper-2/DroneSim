@@ -33,7 +33,7 @@ public class DroneController implements FlightController {
     private float kdVelXZ = 0.05f;
 
     // Use the SAME gains for Y so the PID output direction matches the
-    // velocity-error direction — different gains distort the 3D vector,
+    // velocity-error direction  different gains distort the 3D vector,
     // causing the flight path to curve.
     private float kpVelY = 1.5f; // mismatch causes trouble btw.
     private float kiVelY = 0.0f;
@@ -46,7 +46,7 @@ public class DroneController implements FlightController {
     private static final float DRONE_MASS = 1.5f;   // kg
     // Total max thrust across all 4 motors, derived from propeller equation
     private static final float TOTAL_MAX_THRUST = 4f * Drone.MAX_THRUST_PER_MOTOR;
-    private static final float MAX_ACCEL_HORIZ = 6.0f;  // m/s² — 3D magnitude cap for desired accel
+    private static final float MAX_ACCEL_HORIZ = 6.0f;  // m/s²  3D magnitude cap for desired accel
     // Fraction of max thrust budget available after motor-mixer overhead.
     // The throttle-priority mixer scales corrections instead of shifting
     // throttle, so the commanded average thrust is largely preserved.
@@ -134,7 +134,7 @@ public class DroneController implements FlightController {
             return;
         }
 
-        // 0) Position hold — overrides Manual input.
+        // 0) Position hold  overrides Manual input.
         //    Pipeline:  pos-error → desired-vel →
         //               vel-error → desired-accel →
         //               (physics) → 
@@ -237,7 +237,7 @@ public class DroneController implements FlightController {
                 pitchInput = clamp(pitchRad / maxAngleRad, -1f, 1f);
                 rollInput = clamp(rollRad / maxAngleRad, -1f, 1f);
             } else {
-                // Falling / zero thrust — level out
+                // Falling / zero thrust  level out
                 pitchInput = 0f;
                 rollInput = 0f;
             }
@@ -259,7 +259,7 @@ public class DroneController implements FlightController {
         float cosPitch = 1f - 2f * (qy * qy + qz * qz);
         float currentPitch = (float) Math.toDegrees(Math.atan2(sinPitch, cosPitch));
 
-        // Yaw   (Y axis rotation) — not used in rate-mode yaw but kept for future
+        // Yaw   (Y axis rotation)  not used in rate-mode yaw but kept for future
         float sinYawP = 2f * (qw * qy - qz * qx);
         sinYawP = Math.max(-1f, Math.min(1f, sinYawP)); // clamp for asin safety
         @SuppressWarnings("unused")
@@ -335,7 +335,7 @@ public class DroneController implements FlightController {
         corrYaw = pidStep(errorYawRate, kpYawRate, kiYawRate, kdYawRate,
                 deltaTime, PidChannel.YAW_RATE);
 
-        // 3) Motor mixer (X quad layout) — throttle-priority with
+        // 3) Motor mixer (X quad layout)  throttle-priority with
         //    bounded correction span.
         //
         //    - Scale corrections so max-min ≤ MAX_CORRECTION_SPAN.
@@ -380,18 +380,23 @@ public class DroneController implements FlightController {
         motorRR = clamp(thr + corrRR * corrScale, 0f, 1f);
     }
 
-    // Target position control
+    // Target position control If the target changes significantly, reset the
+    // velocity ramp so the drone this fixes the issue where swapping between
+    // two close targets causes instability.
+    private static final float TARGET_RESET_THRESHOLD = 99.0f; // meters
+
     @Override
     public void setTargetPosition(Vector3f target) {
+        boolean significantChange = targetPosition == null || target == null
+                || targetPosition.distance(target) > TARGET_RESET_THRESHOLD;
         this.targetPosition = target != null ? new Vector3f(target) : null;
         this.positionHoldEnabled = (target != null);
-        // Reset all PID integrators and previous errors so the
-        // controller starts completely fresh for the new trajectory.
-        Arrays.fill(integrals, 0f);
-        Arrays.fill(prevErrors, 0f);
-        // Start the velocity ramp so the drone gradually accelerates
-        // toward the new target instead of tilting aggressively at once.
-        timeSinceTargetChange = 0f;
+        if (significantChange) {
+            // Fresh trajectory
+            Arrays.fill(integrals, 0f);
+            Arrays.fill(prevErrors, 0f);
+            timeSinceTargetChange = 0f;
+        }
     }
 
     @Override

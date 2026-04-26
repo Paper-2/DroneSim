@@ -20,7 +20,9 @@ public class BoidSwarmBehavior implements DroneBehavior {
     public static final float DEFAULT_ALIGNMENT_WEIGHT = 1.0f;
     public static final float DEFAULT_COHESION_WEIGHT = 0.8f;
     public static final float DEFAULT_BOUNDS_WEIGHT = 1.5f;
-    public static final float DEFAULT_LOOK_AHEAD = 6f;   // metres — how far ahead to project the target
+    public static final float DEFAULT_LOOK_AHEAD = 6f;   // metres - how far ahead to project the target
+    public static final float DEFAULT_MIN_ALTITUDE = 5f;
+    public static final float DEFAULT_ALTITUDE_WEIGHT = 3.0f;
 
     private final List<Drone> swarm;
     private final Vector3f boundsCenter;
@@ -33,6 +35,8 @@ public class BoidSwarmBehavior implements DroneBehavior {
     private final float cohesionWeight;
     private final float boundsWeight;
     private final float lookAhead;
+    private final float minAltitude;
+    private final float altitudeWeight;
 
     public BoidSwarmBehavior(List<Drone> swarm, Vector3f boundsCenter, float boundsRadius) {
         this(swarm, boundsCenter, boundsRadius,
@@ -47,6 +51,18 @@ public class BoidSwarmBehavior implements DroneBehavior {
             float separationWeight, float alignmentWeight,
             float cohesionWeight, float boundsWeight,
             float lookAhead) {
+        this(swarm, boundsCenter, boundsRadius,
+                neighborRadius, separationRadius,
+                separationWeight, alignmentWeight,
+                cohesionWeight, boundsWeight,
+                lookAhead, DEFAULT_MIN_ALTITUDE, DEFAULT_ALTITUDE_WEIGHT);
+    }
+
+    public BoidSwarmBehavior(List<Drone> swarm, Vector3f boundsCenter, float boundsRadius,
+            float neighborRadius, float separationRadius,
+            float separationWeight, float alignmentWeight,
+            float cohesionWeight, float boundsWeight,
+            float lookAhead, float minAltitude, float altitudeWeight) {
         this.swarm = swarm;
         this.boundsCenter = new Vector3f(boundsCenter);
         this.boundsRadius = boundsRadius;
@@ -57,6 +73,8 @@ public class BoidSwarmBehavior implements DroneBehavior {
         this.cohesionWeight = cohesionWeight;
         this.boundsWeight = boundsWeight;
         this.lookAhead = lookAhead;
+        this.minAltitude = minAltitude;
+        this.altitudeWeight = altitudeWeight;
     }
 
     @Override
@@ -109,7 +127,7 @@ public class BoidSwarmBehavior implements DroneBehavior {
             steering.addLocal(separation.multLocal(separationWeight));
         }
 
-        // Soft bounds — pull back toward centre when outside the sphere
+        // Soft bounds  pull back toward centre when outside the sphere
         Vector3f fromCenter = myPos.subtract(boundsCenter);
         float distFromCenter = fromCenter.length();
         if (distFromCenter > boundsRadius) {
@@ -118,11 +136,23 @@ public class BoidSwarmBehavior implements DroneBehavior {
             steering.addLocal(pullBack);
         }
 
+        // Min-altitude floor  push upward, scaled by how far below the floor.
+        if (myPos.y < minAltitude) {
+            float deficit = minAltitude - myPos.y;
+            steering.addLocal(0f, deficit * altitudeWeight, 0f);
+        }
+
         // Project the target ahead of the drone in the steering direction so the
         // autopilot has somewhere to chase.
         Vector3f heading = steering.length() > 0.01f ? steering.normalize()
                 : (myVel.length() > 0.01f ? myVel.normalize() : new Vector3f(1, 0, 0));
         Vector3f target = myPos.add(heading.mult(lookAhead));
+
+        // Hard floor on the projected target so the autopilot never aims down
+        // through the ground.
+        if (target.y < minAltitude) {
+            target.y = minAltitude;
+        }
 
         self.setTargetPosition(target);
     }

@@ -25,8 +25,8 @@ import id.jrosclient.TopicSubscriber;
  * <p>
  * Subscribes to:
  * <ul>
- * <li>{@code /drone/telemetry} — {@code geometry_msgs/PoseStamped}</li>
- * <li>{@code /drone/camera/image_raw} — {@code sensor_msgs/Image}</li>
+ * <li>{@code /drone/telemetry} {@code geometry_msgs/PoseStamped}</li>
+ * <li>{@code /drone/camera/image_raw} {@code sensor_msgs/Image}</li>
  * </ul>
  */
 public class Ros2DroneClient implements AutoCloseable {

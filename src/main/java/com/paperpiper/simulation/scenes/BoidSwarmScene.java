@@ -18,7 +18,7 @@ public final class BoidSwarmScene implements SceneFactory {
     public static final int DRONE_COUNT = 30;
     public static final float SPAWN_VOLUME = 30f;     // half-extent of cube the drones spawn in
     public static final float ALTITUDE = 25f;
-    public static final float BOUNDS_RADIUS = 60f;    // soft sphere — boids steer back if they drift past this
+    public static final float BOUNDS_RADIUS = 60f;    // soft sphere  boids steer back if they drift past this
 
     public BoidSwarmScene() {
     }

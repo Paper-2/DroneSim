@@ -41,9 +41,8 @@ public class Window {
     }
 
     /**
-     * Initialize GLFW and create window.
-     * TODO: resolve the conflict if the screen ratio is not 16:9. I believe 
-     * the shaders are at fault
+     * Initialize GLFW and create window. TODO: resolve the conflict if the
+     * screen ratio is not 16:9. I believe the shaders are at fault
      */
     public void init() {
         logger.info("Initializing GLFW window: {}x{}", width, height);
@@ -82,9 +81,8 @@ public class Window {
             this.resized = true;
         });
 
-        // NOTE: ESC key callback removed — ImGui installs its own GLFW callbacks.
+        // NOTE: ESC key callback removed  ImGui installs its own GLFW callbacks.
         // ESC is handled via polling in PaperPiper.handleInput().
-
         // Center window
         try (MemoryStack stack = stackPush()) {
             IntBuffer pWidth = stack.mallocInt(1);

@@ -40,7 +40,7 @@ public class UIManager {
 
         UITheme.apply();
 
-        // Install GLFW callbacks — replaces existing key callback in Window.java
+        // Install GLFW callbacks  replaces existing key callback in Window.java
         imguiGlfw.init(windowHandle, true);
 
         // OpenGL 3.3 core

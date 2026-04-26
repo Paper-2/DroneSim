@@ -68,7 +68,7 @@ class ClientServerConnectionTest {
         DroneSubscriptionClient client = new DroneSubscriptionClient(new TcpRossClient());
         client.connect("127.0.0.1", TCP_PORT);
 
-        // Server auto-spawns drones on subscribe — should not throw
+        // Server auto-spawns drones on subscribe  should not throw
         client.subscribeToDrone("brand-new-drone");
 
         client.disconnect();
@@ -79,7 +79,7 @@ class ClientServerConnectionTest {
         DroneSubscriptionClient client = new DroneSubscriptionClient(new TcpRossClient());
         client.connect("127.0.0.1", TCP_PORT);
 
-        // Should not throw — drone-1 exists in the SyntheticSimulationHardwareApi(1)
+        // Should not throw  drone-1 exists in the SyntheticSimulationHardwareApi(1)
         client.subscribeToDrone("drone-1");
 
         client.disconnect();

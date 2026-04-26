@@ -111,7 +111,7 @@ public class PaperPiper {
         // if (controller.isConnected()) {
         //     logger.info("Controller detected: {}", controller.getName());
         // } else {
-        //     logger.info("No controller detected — will scan each frame");
+        //     logger.info("No controller detected  will scan each frame");
         // }
         running = true;
         logger.info("Initialization complete!");

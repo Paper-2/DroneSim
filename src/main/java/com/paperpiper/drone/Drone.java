@@ -40,7 +40,7 @@ public class Drone {
     private static final float DRONE_DEPTH = 0.5f;
      */
 
-    // Propeller / motor specs — thrust is computed from the standard propeller
+    // Propeller / motor specs  thrust is computed from the standard propeller
     // equation: T = Ct × ρ × n² × D⁴  where n = RPM / 60 (revs per second).
     static final float PROP_DIAMETER = 0.254f;        // m  (10-inch propeller)
     static final float THRUST_COEFFICIENT = 0.072f;   // Ct (dimensionless, blade geometry)
@@ -352,7 +352,7 @@ public class Drone {
             return;
         }
 
-        // Run stabilization controller — takes raw stick inputs + sensor state,
+        // Run stabilization controller  takes raw stick inputs + sensor state,
         // outputs per-motor values with PID corrections applied
         Quaternion orientation = rigidBody.getPhysicsRotation(null);
         Vector3f angularVelocity = rigidBody.getAngularVelocity(null);

@@ -34,8 +34,8 @@ import id.jrosmessages.primitives.Time;
  * <p>
  * Topics published:
  * <ul>
- * <li>{@code /drone/telemetry} — {@code geometry_msgs/PoseStamped}</li>
- * <li>{@code /drone/camera/image_raw} — {@code sensor_msgs/Image}</li>
+ * <li>{@code /drone/telemetry} {@code geometry_msgs/PoseStamped}</li>
+ * <li>{@code /drone/camera/image_raw} {@code sensor_msgs/Image}</li>
  * </ul>
  */
 public class Ros2Bridge implements AutoCloseable {
@@ -84,7 +84,7 @@ public class Ros2Bridge implements AutoCloseable {
         scheduler.scheduleAtFixedRate(this::publishFrameSafe, 0,
                 Math.max(1, 1000 / frameRateHz), TimeUnit.MILLISECONDS);
 
-        logger.info("ROS2 bridge started — publishing telemetry@{}Hz, images@{}Hz",
+        logger.info("ROS2 bridge started  publishing telemetry@{}Hz, images@{}Hz",
                 telemetryRateHz, frameRateHz);
     }
 

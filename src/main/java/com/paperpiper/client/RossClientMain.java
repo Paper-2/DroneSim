@@ -77,14 +77,14 @@ public final class RossClientMain {
         if (controller.isConnected()) {
             logger.info("Controller detected: {}", controller.getName());
         } else {
-            logger.info("No controller detected — will scan each frame");
+            logger.info("No controller detected  will scan each frame");
         }
 
         // --- Network client ---
         DroneSubscriptionClient client = new DroneSubscriptionClient(new TcpRossClient());
 
         // --- Display window (Swing) ---
-        ClientDisplayWindow displayWindow = new ClientDisplayWindow("ROSS Client — " + droneId);
+        ClientDisplayWindow displayWindow = new ClientDisplayWindow("ROSS Client  " + droneId);
 
         client.addTelemetryListener(telemetry -> logger.debug(
                 "Telemetry [{}] pos=({},{},{}) vel=({},{},{}) t={}ms",
@@ -134,7 +134,7 @@ public final class RossClientMain {
                     );
 
                     if (controller.isArmToggled()) {
-                        // Toggle arm state — for simplicity we just send true/false alternating
+                        // Toggle arm state  for simplicity we just send true/false alternating
                         wasArmToggled = !wasArmToggled;
                         client.sendArm(wasArmToggled);
                         logger.info("Arm toggled: {}", wasArmToggled);

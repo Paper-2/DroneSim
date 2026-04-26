@@ -15,6 +15,7 @@ import com.jme3.bullet.objects.PhysicsRigidBody;
 import com.jme3.math.Matrix3f;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
+import com.paperpiper.drone.behavior.DroneBehavior;
 import com.paperpiper.physics.PhysicsWorld;
 import com.paperpiper.render.Mesh;
 import com.paperpiper.render.MeshData;
@@ -89,16 +90,31 @@ public class Drone {
     private float roll = 0.0f;     // Left/right tilt
     private float yaw = 0.0f;      // Rotation around vertical axis
 
-    // flight controller (PID stabilization)
-    private final DroneController controller = new DroneController();
+    // flight controller (PID stabilization by default; swap via setController)
+    private FlightController controller = new DroneController();
 
     // autonomous waypoint patrol queue
     private static final float WAYPOINT_ARRIVAL_RADIUS = 3.0f;
     private List<Vector3f> waypointQueue = Collections.emptyList();
     private int waypointIndex = 0;
 
-    public DroneController getController() {
+    private DroneBehavior behavior;
+
+    public FlightController getController() {
         return controller;
+    }
+
+    public void setController(FlightController newController) {
+        if (newController == null) {
+            newController = new DroneController();
+        }
+        Vector3f prevTarget = controller != null ? controller.getTargetPosition() : null;
+        boolean prevHold = controller != null && controller.isPositionHoldEnabled();
+        this.controller = newController;
+        if (prevTarget != null) {
+            controller.setTargetPosition(prevTarget);
+        }
+        controller.setPositionHoldEnabled(prevHold);
     }
 
     // motors state
@@ -372,12 +388,16 @@ public class Drone {
         float nRL = rpmRL / 60f;
         float nRR = rpmRR / 60f;
 
-        applyThrustAtPoint(frontLeftPropeller,  THRUST_FACTOR * nFL * nFL);
+        applyThrustAtPoint(frontLeftPropeller, THRUST_FACTOR * nFL * nFL);
         applyThrustAtPoint(frontRightPropeller, THRUST_FACTOR * nFR * nFR);
-        applyThrustAtPoint(rearLeftPropeller,   THRUST_FACTOR * nRL * nRL);
-        applyThrustAtPoint(rearRightPropeller,  THRUST_FACTOR * nRR * nRR);
+        applyThrustAtPoint(rearLeftPropeller, THRUST_FACTOR * nRL * nRL);
+        applyThrustAtPoint(rearRightPropeller, THRUST_FACTOR * nRR * nRR);
 
         droneBody.updateModel(rpmFL, rpmFR, rpmRL, rpmRR, deltaTime);
+
+        if (behavior != null) {
+            behavior.update(this, deltaTime);
+        }
 
         if (!waypointQueue.isEmpty()) {
             Vector3f target = waypointQueue.get(waypointIndex);
@@ -446,10 +466,21 @@ public class Drone {
         return rigidBody.getPhysicsRotation(null);
     }
 
-    public float getRpmFL() { return rpmFL; }
-    public float getRpmFR() { return rpmFR; }
-    public float getRpmRL() { return rpmRL; }
-    public float getRpmRR() { return rpmRR; }
+    public float getRpmFL() {
+        return rpmFL;
+    }
+
+    public float getRpmFR() {
+        return rpmFR;
+    }
+
+    public float getRpmRL() {
+        return rpmRL;
+    }
+
+    public float getRpmRR() {
+        return rpmRR;
+    }
 
     // Gets the current linear acceleration 
     public Vector3f getAcceleration() {
@@ -550,6 +581,14 @@ public class Drone {
     public void clearWaypointQueue() {
         waypointQueue = Collections.emptyList();
         waypointIndex = 0;
+    }
+
+    public void setBehavior(DroneBehavior behavior) {
+        this.behavior = behavior;
+    }
+
+    public DroneBehavior getBehavior() {
+        return behavior;
     }
 
     /**

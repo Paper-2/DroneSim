@@ -5,7 +5,7 @@ import java.util.Arrays;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 
-public class DroneController {
+public class DroneController implements FlightController {
 
     // PID channel enum for state indexing
     private enum PidChannel {
@@ -118,6 +118,7 @@ public class DroneController {
     /**
      * Run one control loop iteration.
      */
+    @Override
     public void update(float throttle,
             float rollInput,
             float pitchInput,
@@ -302,7 +303,6 @@ public class DroneController {
         // Yaw is rate-mode: stick directly commands yaw rate
         float desiredYawRate = yawInput * MAX_RATE_COMMAND;
 
-
         // 1) Attitude (angle) PID → outputs desired angular rates
         float errorRollAngle = desiredRoll - currentRoll;
         float errorPitchAngle = desiredPitch - currentPitch;
@@ -381,6 +381,7 @@ public class DroneController {
     }
 
     // Target position control
+    @Override
     public void setTargetPosition(Vector3f target) {
         this.targetPosition = target != null ? new Vector3f(target) : null;
         this.positionHoldEnabled = (target != null);
@@ -393,14 +394,17 @@ public class DroneController {
         timeSinceTargetChange = 0f;
     }
 
+    @Override
     public Vector3f getTargetPosition() {
         return targetPosition != null ? new Vector3f(targetPosition) : null;
     }
 
+    @Override
     public void setPositionHoldEnabled(boolean enabled) {
         this.positionHoldEnabled = enabled;
     }
 
+    @Override
     public boolean isPositionHoldEnabled() {
         return positionHoldEnabled;
     }
@@ -420,6 +424,7 @@ public class DroneController {
         kiVelY = kiVel;
     }
 
+    @Override
     public void reset() {
         Arrays.fill(integrals, 0f);
         Arrays.fill(prevErrors, 0f);
@@ -428,18 +433,22 @@ public class DroneController {
     }
 
     // Motor outputs
+    @Override
     public float getMotorFL() {
         return motorFL;
     }
 
+    @Override
     public float getMotorFR() {
         return motorFR;
     }
 
+    @Override
     public float getMotorRL() {
         return motorRL;
     }
 
+    @Override
     public float getMotorRR() {
         return motorRR;
     }

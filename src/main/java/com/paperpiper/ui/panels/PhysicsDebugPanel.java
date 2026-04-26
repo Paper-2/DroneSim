@@ -1,6 +1,7 @@
 package com.paperpiper.ui.panels;
 
 import com.paperpiper.drone.Drone;
+import com.paperpiper.drone.DroneController;
 import com.paperpiper.physics.PhysicsWorld;
 import com.paperpiper.simulation.SimulationEngine;
 import imgui.ImGui;
@@ -14,20 +15,22 @@ public class PhysicsDebugPanel {
     private boolean visible = false;
 
     // Current tuning values (defaults match Drone.java / PhysicsWorld)
-    private final float[] gravity = { -9.81f };
-    private final float[] mass = { 1.5f };
-    private final float[] maxThrust = { 5.0f };
-    private final float[] maxTorque = { 5.0f };
+    private final float[] gravity = {-9.81f};
+    private final float[] mass = {1.5f};
+    private final float[] maxThrust = {5.0f};
+    private final float[] maxTorque = {5.0f};
 
     // PID gains
-    private final float[] angleKp = { 4.0f };
-    private final float[] angleKd = { 0.2f };
-    private final float[] rateKp = { 0.7f };
-    private final float[] rateKi = { 0.1f };
-    private final float[] rateKd = { 0.02f };
+    private final float[] angleKp = {4.0f};
+    private final float[] angleKd = {0.2f};
+    private final float[] rateKp = {0.7f};
+    private final float[] rateKi = {0.1f};
+    private final float[] rateKd = {0.02f};
 
     public void render(SimulationEngine simulation, PhysicsWorld physicsWorld) {
-        if (!visible) return;
+        if (!visible) {
+            return;
+        }
 
         ImGui.setNextWindowSize(300, 350, ImGuiCond.FirstUseEver);
         if (ImGui.begin("Physics Debug")) {
@@ -40,7 +43,8 @@ public class PhysicsDebugPanel {
             }
 
             // Drone physics
-            ImGui.separator(); ImGui.text("Drone Physics");
+            ImGui.separator();
+            ImGui.text("Drone Physics");
             ImGui.sliderFloat("Mass", mass, 0.1f, 10.0f, "%.2f kg");
             ImGui.sliderFloat("Max Thrust", maxThrust, 1.0f, 50.0f, "%.1f N");
             ImGui.sliderFloat("Max Torque", maxTorque, 0.5f, 20.0f, "%.1f N·m");
@@ -61,9 +65,9 @@ public class PhysicsDebugPanel {
             ImGui.separator();
             if (ImGui.button("Apply to Active Drone", 180, 0)) {
                 Drone active = simulation.getActiveDrone();
-                if (active != null) {
-                    active.getController().setAngleGains(angleKp[0], 0, angleKd[0]);
-                    active.getController().setRateGains(rateKp[0], rateKi[0], rateKd[0]);
+                if (active != null && active.getController() instanceof DroneController pid) {
+                    pid.setAngleGains(angleKp[0], 0, angleKd[0]);
+                    pid.setRateGains(rateKp[0], rateKi[0], rateKd[0]);
                 }
             }
 
@@ -84,6 +88,11 @@ public class PhysicsDebugPanel {
         ImGui.end();
     }
 
-    public boolean isVisible() { return visible; }
-    public void setVisible(boolean visible) { this.visible = visible; }
+    public boolean isVisible() {
+        return visible;
+    }
+
+    public void setVisible(boolean visible) {
+        this.visible = visible;
+    }
 }

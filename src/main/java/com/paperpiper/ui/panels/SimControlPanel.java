@@ -1,13 +1,15 @@
 package com.paperpiper.ui.panels;
 
 import com.paperpiper.simulation.SimulationEngine;
+
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
 import imgui.type.ImFloat;
 
 /**
- * Simulation controls: pause/resume, time scale, spawn/remove drones, debug toggles.
+ * Simulation controls: pause/resume, time scale, spawn/remove drones, debug
+ * toggles.
  */
 public class SimControlPanel {
 
@@ -17,7 +19,9 @@ public class SimControlPanel {
     private final ImFloat spawnZ = new ImFloat(0);
 
     public void render(SimulationEngine simulation) {
-        if (!visible) return;
+        if (!visible) {
+            return;
+        }
 
         ImGui.setNextWindowSize(280, 300, ImGuiCond.FirstUseEver);
         if (ImGui.begin("Sim Controls")) {
@@ -41,8 +45,9 @@ public class SimControlPanel {
             ImGui.text(String.format("T+ %02d:%05.2f", mins, secs));
 
             // Time scale slider
-            ImGui.separator(); ImGui.text("Time Scale");
-            float[] ts = { simulation.getTimeScale() };
+            ImGui.separator();
+            ImGui.text("Time Scale");
+            float[] ts = {simulation.getTimeScale()};
             if (ImGui.sliderFloat("##timescale", ts, 0.1f, 5.0f, "%.1fx")) {
                 simulation.setTimeScale(ts[0]);
             }
@@ -52,12 +57,16 @@ public class SimControlPanel {
             }
 
             // Spawn drone
-            ImGui.separator(); ImGui.text("Spawn Drone");
-            ImGui.setNextItemWidth(60); ImGui.inputFloat("X##spawn", spawnX, 0, 0, "%.0f");
+            ImGui.separator();
+            ImGui.text("Spawn Drone");
+            ImGui.setNextItemWidth(60);
+            ImGui.inputFloat("X##spawn", spawnX, 0, 0, "%.0f");
             ImGui.sameLine();
-            ImGui.setNextItemWidth(60); ImGui.inputFloat("Y##spawn", spawnY, 0, 0, "%.0f");
+            ImGui.setNextItemWidth(60);
+            ImGui.inputFloat("Y##spawn", spawnY, 0, 0, "%.0f");
             ImGui.sameLine();
-            ImGui.setNextItemWidth(60); ImGui.inputFloat("Z##spawn", spawnZ, 0, 0, "%.0f");
+            ImGui.setNextItemWidth(60);
+            ImGui.inputFloat("Z##spawn", spawnZ, 0, 0, "%.0f");
             if (ImGui.button("Spawn", 80, 0)) {
                 var drone = simulation.addDrone(new com.jme3.math.Vector3f(spawnX.get(), spawnY.get(), spawnZ.get()));
                 drone.setMotorsArmed(true);
@@ -74,13 +83,15 @@ public class SimControlPanel {
             }
 
             // Reset
-            ImGui.separator(); ImGui.text("Reset");
+            ImGui.separator();
+            ImGui.text("Reset");
             if (ImGui.button("Reset All Drones", 160, 0)) {
                 simulation.reset();
             }
 
             // Debug toggles
-            ImGui.separator(); ImGui.text("Debug");
+            ImGui.separator();
+            ImGui.text("Debug");
             if (ImGui.button("Toggle Collision Shapes")) {
                 simulation.toggleCollisionShapesVisible();
             }
@@ -88,6 +99,11 @@ public class SimControlPanel {
         ImGui.end();
     }
 
-    public boolean isVisible() { return visible; }
-    public void setVisible(boolean visible) { this.visible = visible; }
+    public boolean isVisible() {
+        return visible;
+    }
+
+    public void setVisible(boolean visible) {
+        this.visible = visible;
+    }
 }

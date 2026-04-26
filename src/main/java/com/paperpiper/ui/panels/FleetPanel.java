@@ -16,7 +16,9 @@ public class FleetPanel {
     private boolean visible = false;
 
     public void render(SimulationEngine simulation) {
-        if (!visible) return;
+        if (!visible) {
+            return;
+        }
 
         ImGui.setNextWindowSize(500, 350, ImGuiCond.FirstUseEver);
         if (ImGui.begin("Fleet Overview")) {
@@ -50,7 +52,9 @@ public class FleetPanel {
 
                     totalAlt += pos.y;
                     totalSpeed += speed;
-                    if (drone.isMotorsArmed()) armedCount++;
+                    if (drone.isMotorsArmed()) {
+                        armedCount++;
+                    }
 
                     ImGui.tableNextRow();
 
@@ -65,11 +69,16 @@ public class FleetPanel {
                     if (ImGui.selectable(String.valueOf(i), isActive, imgui.flag.ImGuiSelectableFlags.SpanAllColumns)) {
                         simulation.setActiveDrone(drone);
                     }
-                    ImGui.tableNextColumn(); ImGui.text(String.format("%.1f", pos.x));
-                    ImGui.tableNextColumn(); ImGui.text(String.format("%.1f", pos.y));
-                    ImGui.tableNextColumn(); ImGui.text(String.format("%.1f", pos.z));
-                    ImGui.tableNextColumn(); ImGui.text(String.format("%.1f", speed));
-                    ImGui.tableNextColumn(); ImGui.text(String.format("%.0f%%", drone.getThrottle() * 100));
+                    ImGui.tableNextColumn();
+                    ImGui.text(String.format("%.1f", pos.x));
+                    ImGui.tableNextColumn();
+                    ImGui.text(String.format("%.1f", pos.y));
+                    ImGui.tableNextColumn();
+                    ImGui.text(String.format("%.1f", pos.z));
+                    ImGui.tableNextColumn();
+                    ImGui.text(String.format("%.1f", speed));
+                    ImGui.tableNextColumn();
+                    ImGui.text(String.format("%.0f%%", drone.getThrottle() * 100));
                     ImGui.tableNextColumn();
                     ImGui.text(drone.isMotorsArmed() ? "YES" : "NO");
                 }
@@ -87,7 +96,9 @@ public class FleetPanel {
         ImGui.end();
     }
 
-    /** Compact list view for the left sidebar. */
+    /**
+     * Compact list view for the left sidebar.
+     */
     public void renderCompact(SimulationEngine simulation) {
         java.util.List<com.paperpiper.drone.Drone> drones = simulation.getDrones();
         com.paperpiper.drone.Drone activeDrone = simulation.getActiveDrone();
@@ -103,6 +114,11 @@ public class FleetPanel {
         }
     }
 
-    public boolean isVisible() { return visible; }
-    public void setVisible(boolean visible) { this.visible = visible; }
+    public boolean isVisible() {
+        return visible;
+    }
+
+    public void setVisible(boolean visible) {
+        this.visible = visible;
+    }
 }

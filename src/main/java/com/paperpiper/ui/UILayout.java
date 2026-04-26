@@ -11,6 +11,7 @@ import com.paperpiper.ui.overlay.DroneHUD3D;
 import com.paperpiper.ui.panels.EventLogPanel;
 import com.paperpiper.ui.panels.FleetPanel;
 import com.paperpiper.ui.panels.GraphPanel;
+import com.paperpiper.ui.panels.GlyphPreviewPanel;
 import com.paperpiper.ui.panels.InspectorPanel;
 import com.paperpiper.ui.panels.ScenePanel;
 
@@ -40,6 +41,7 @@ public class UILayout {
     private final DataExporter dataExporter = new DataExporter();
     private final ScenePanel scenePanel = new ScenePanel();
     private final SceneManager sceneManager = new SceneManager();
+    private final GlyphPreviewPanel glyphPreviewPanel = new GlyphPreviewPanel();
 
     // Sim-control inputs (embedded in right sidebar)
     private final ImFloat spawnX = new ImFloat(0);
@@ -53,10 +55,6 @@ public class UILayout {
     private final float[] rateKp = {0.7f};
     private final float[] rateKi = {0.1f};
     private final float[] rateKd = {0.02f};
-
-    // Toolbar state
-    private int trsMode = 0;  // 0=T 1=R 2=S
-    private int spaceMode = 0;  // 0=L 1=W 2=P
 
     public void render(SimulationEngine simulation, Renderer renderer,
             PhysicsWorld physicsWorld, Window window, float deltaTime) {
@@ -87,6 +85,7 @@ public class UILayout {
         Camera camera = renderer.getCamera();
         droneHUD.render(simulation, camera, renderer.getProjectionMatrix(),
                 winW, winH, vpLeft, vpTop, vpRight, vpBottom);
+        glyphPreviewPanel.render();
     }
 
     // Menu Bar
@@ -95,12 +94,12 @@ public class UILayout {
 
             if (ImGui.beginMenu("File")) {
                 if (!dataExporter.isRecording()) {
-                    if (ImGui.menuItem("Start Recording")) {
+                    if (ImGui.menuItem("● Start Recording")) {
                         dataExporter.startRecording();
                         eventLogPanel.addEvent(simulation.getSimulationTime(), "Recording started");
                     }
                 } else {
-                    if (ImGui.menuItem("\u25A0 Stop Recording")) {
+                    if (ImGui.menuItem("⏹ Stop Recording")) {
                         dataExporter.stopRecording();
                         eventLogPanel.addEvent(simulation.getSimulationTime(), "Recording stopped");
                     }
@@ -109,28 +108,31 @@ public class UILayout {
             }
 
             if (ImGui.beginMenu("View")) {
-                if (ImGui.menuItem("3D Labels", "", droneHUD.isVisible())) {
+                if (ImGui.menuItem("◎ 3D Labels", "", droneHUD.isVisible())) {
                     droneHUD.setVisible(!droneHUD.isVisible());
                 }
+                if (ImGui.menuItem("◆ Glyph Preview", "", glyphPreviewPanel.isVisible())) {
+                    glyphPreviewPanel.setVisible(!glyphPreviewPanel.isVisible());
+                }
                 boolean isNight = UITheme.getMode() == UITheme.Mode.NIGHT;
-                if (ImGui.menuItem(isNight ? "\u2600 Light Mode" : "\u263E Night Mode")) {
+                if (ImGui.menuItem(isNight ? "☀ Light Mode" : "☽ Night Mode")) {
                     UITheme.toggle();
                 }
                 ImGui.endMenu();
             }
 
             if (ImGui.beginMenu("Simulation")) {
-                if (ImGui.menuItem(simulation.isPaused() ? "\u25B6 Resume" : "\u23F8 Pause")) {
+                if (ImGui.menuItem(simulation.isPaused() ? "▶ Resume" : "⏸ Pause")) {
                     simulation.setPaused(!simulation.isPaused());
                     eventLogPanel.addEvent(simulation.getSimulationTime(),
                             simulation.isPaused() ? "Simulation paused" : "Simulation resumed");
                 }
                 ImGui.separator();
-                if (ImGui.menuItem("Reset All")) {
+                if (ImGui.menuItem("⇵ Reset All")) {
                     simulation.reset();
                     eventLogPanel.addEvent(0, "Simulation reset");
                 }
-                if (ImGui.menuItem("Toggle Collision Shapes")) {
+                if (ImGui.menuItem("◇ Toggle Collision Shapes")) {
                     simulation.toggleCollisionShapesVisible();
                 }
                 ImGui.endMenu();
@@ -148,7 +150,7 @@ public class UILayout {
                     }
                 }
                 ImGui.separator();
-                if (ImGui.menuItem("Spawn Drone")) {
+                if (ImGui.menuItem("★ Spawn Drone")) {
                     var drone = simulation.addDrone(new com.jme3.math.Vector3f(0, 2, 0));
                     drone.setMotorsArmed(true);
                     sceneManager.markModified();
@@ -156,7 +158,7 @@ public class UILayout {
                             "Drone spawned (#" + simulation.getDrones().size() + ")");
                 }
                 if (simulation.getActiveDrone() != null) {
-                    if (ImGui.menuItem("Remove Active Drone")) {
+                    if (ImGui.menuItem("✘ Remove Active Drone")) {
                         int idx = simulation.getDrones().indexOf(simulation.getActiveDrone());
                         simulation.removeDrone(simulation.getActiveDrone());
                         sceneManager.markModified();
@@ -168,14 +170,14 @@ public class UILayout {
             }
 
             // Right-aligned sim-control buttons
-            ImGui.sameLine(ImGui.getWindowWidth() - 140);
+            ImGui.sameLine(ImGui.getWindowWidth() - 170);
 
             if (simulation.isPaused()) {
-                if (ImGui.smallButton("\u25B6")) {
+                if (ImGui.smallButton("▶")) {
                     simulation.setPaused(false);
                 }
             } else {
-                if (ImGui.smallButton("\u23F8")) {
+                if (ImGui.smallButton("⏸")) {
                     simulation.setPaused(true);
                 }
             }
@@ -184,7 +186,7 @@ public class UILayout {
                 simulation.setTimeScale(1.0f);
             }
             ImGui.sameLine();
-            if (ImGui.smallButton("\u23E9")) {
+            if (ImGui.smallButton("⏩ .5x")) {
                 simulation.setTimeScale(Math.min(5.0f, simulation.getTimeScale() + 0.5f));
             }
             ImGui.sameLine();
@@ -208,7 +210,7 @@ public class UILayout {
             float availH = ImGui.getContentRegionAvailY();
 
             // ── Drone List ────────────────────────────────────────────────
-            ImGui.text("Drones");
+            ImGui.text("⚐ Drones");
             ImGui.separator();
 
             float listH = availH * 0.30f;
@@ -220,7 +222,7 @@ public class UILayout {
             ImGui.spacing();
 
             // ── Inspector ────────────────────────────────────────────────
-            ImGui.text("Inspector");
+            ImGui.text("◎ Inspector");
             ImGui.separator();
 
             float inspH = availH * 0.30f;
@@ -232,7 +234,7 @@ public class UILayout {
             ImGui.spacing();
 
             // ── Attitude / Throttle ───────────────────────────────────────
-            ImGui.text("Attitude");
+            ImGui.text("⚡ Attitude");
             ImGui.separator();
 
             if (ImGui.beginChild("##AttitudeChild", 0, 0, false)) {
@@ -249,14 +251,14 @@ public class UILayout {
     private void renderAttitudeSection(SimulationEngine simulation) {
         var drone = simulation.getActiveDrone();
         if (drone == null) {
-            ImGui.textDisabled("No drone selected");
+            ImGui.textDisabled("✘ No drone selected");
             return;
         }
 
         float barW = ImGui.getContentRegionAvailX() - 4;
 
         // Throttle
-        ImGui.text("Throttle");
+        ImGui.text("↑ Throttle");
         ImGui.progressBar(drone.getThrottle(), barW, 16,
                 String.format("%.0f%%", drone.getThrottle() * 100));
 
@@ -267,14 +269,14 @@ public class UILayout {
         ImGui.spacing();
 
         // Motor outputs
-        ImGui.text("Motors");
+        ImGui.text("ᛏ Motors");
         boolean armed = drone.isMotorsArmed();
         if (armed) {
             ImGui.pushStyleColor(ImGuiCol.Text, 0.2f, 1.0f, 0.2f, 1.0f);
-            ImGui.text("ARMED");
+            ImGui.text("⌘ ARMED");
         } else {
             ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.3f, 0.3f, 1.0f);
-            ImGui.text("DISARMED");
+            ImGui.text("⌀ DISARMED");
         }
         ImGui.popStyleColor();
 
@@ -303,39 +305,6 @@ public class UILayout {
         float toolbarW = winW - LEFT_SIDEBAR_WIDTH - RIGHT_SIDEBAR_WIDTH;
         ImGui.setNextWindowPos(LEFT_SIDEBAR_WIDTH, menuH, ImGuiCond.Always);
         ImGui.setNextWindowSize(toolbarW, VIEWPORT_TOOLBAR_HEIGHT);
-
-        if (ImGui.begin("##ViewportToolbar", flags)) {
-            HexBackground.drawCurrentWindow();
-            ImGui.text("TRS:");
-            ImGui.sameLine();
-            if (ImGui.smallButton(trsMode == 0 ? "[T]" : " T ")) {
-                trsMode = 0;
-            }
-            ImGui.sameLine();
-            if (ImGui.smallButton(trsMode == 1 ? "[R]" : " R ")) {
-                trsMode = 1;
-            }
-            ImGui.sameLine();
-            if (ImGui.smallButton(trsMode == 2 ? "[S]" : " S ")) {
-                trsMode = 2;
-            }
-
-            ImGui.sameLine();
-            ImGui.text("  Space:");
-            ImGui.sameLine();
-            if (ImGui.smallButton(spaceMode == 0 ? "[L]" : " L ")) {
-                spaceMode = 0;
-            }
-            ImGui.sameLine();
-            if (ImGui.smallButton(spaceMode == 1 ? "[W]" : " W ")) {
-                spaceMode = 1;
-            }
-            ImGui.sameLine();
-            if (ImGui.smallButton(spaceMode == 2 ? "[P]" : " P ")) {
-                spaceMode = 2;
-            }
-        }
-        ImGui.end();
     }
 
     // Bottom Panel (graphs left | event log right)
@@ -372,7 +341,7 @@ public class UILayout {
             float t = simulation.getSimulationTime();
             int mins = (int) (t / 60);
             float secs = t - mins * 60;
-            String rec = dataExporter.isRecording() ? "  \u25CF REC" : "";
+            String rec = dataExporter.isRecording() ? "  ⏺ REC" : "";
             ImGui.textDisabled(String.format("T+ %02d:%05.2f  |  %.1fx%s",
                     mins, secs, simulation.getTimeScale(), rec));
         }
@@ -419,17 +388,17 @@ public class UILayout {
             if (ImGui.beginTabItem("Controls")) {
                 // Pause/Resume
                 if (simulation.isPaused()) {
-                    if (ImGui.button("\u25B6 Resume", -1, 0)) {
+                    if (ImGui.button("▶ Resume", -1, 0)) {
                         simulation.setPaused(false);
                     }
                 } else {
-                    if (ImGui.button("\u23F8 Pause", -1, 0)) {
+                    if (ImGui.button("⏸ Pause", -1, 0)) {
                         simulation.setPaused(true);
                     }
                 }
 
                 // Time scale
-                ImGui.text("Time Scale");
+                ImGui.text("⏳ Time Scale");
                 float[] ts = {simulation.getTimeScale()};
                 float sliderW = ImGui.getContentRegionAvailX() - 30;
                 ImGui.setNextItemWidth(sliderW);
@@ -443,7 +412,7 @@ public class UILayout {
 
                 // Spawn
                 ImGui.separator();
-                ImGui.text("Spawn Drone");
+                ImGui.text("★ Spawn Drone");
                 float fw = (ImGui.getContentRegionAvailX() - 6) / 3f;
                 ImGui.setNextItemWidth(fw);
                 ImGui.inputFloat("##sx", spawnX, 0, 0, "%.0f");
@@ -455,7 +424,7 @@ public class UILayout {
                 ImGui.inputFloat("##sz", spawnZ, 0, 0, "%.0f");
 
                 float bw = (ImGui.getContentRegionAvailX() - 4) / 2f;
-                if (ImGui.button("Spawn", bw, 0)) {
+                if (ImGui.button("★ Spawn", bw, 0)) {
                     var d = simulation.addDrone(
                             new com.jme3.math.Vector3f(spawnX.get(), spawnY.get(), spawnZ.get()));
                     d.setMotorsArmed(true);
@@ -464,7 +433,7 @@ public class UILayout {
                 ImGui.sameLine();
                 if (simulation.getActiveDrone() != null) {
                     ImGui.pushStyleColor(ImGuiCol.Button, 0.55f, 0.12f, 0.12f, 1.0f);
-                    if (ImGui.button("Remove", bw, 0)) {
+                    if (ImGui.button("✘ Remove", bw, 0)) {
                         simulation.removeDrone(simulation.getActiveDrone());
                         sceneManager.markModified();
                     }
@@ -473,11 +442,11 @@ public class UILayout {
 
                 // Reset
                 ImGui.separator();
-                if (ImGui.button("Reset All", -1, 0)) {
+                if (ImGui.button("⇵ Reset All", -1, 0)) {
                     simulation.reset();
                     sceneManager.markModified();
                 }
-                if (ImGui.button("Toggle Colliders", -1, 0)) {
+                if (ImGui.button("◇ Toggle Colliders", -1, 0)) {
                     simulation.toggleCollisionShapesVisible();
                 }
 
@@ -485,18 +454,18 @@ public class UILayout {
             }
 
             if (ImGui.beginTabItem("Physics")) {
-                ImGui.text("World");
-                if (ImGui.sliderFloat("Gravity", gravity, -20.0f, 0.0f, "%.2f")) {
+                ImGui.text("⚓ World");
+                if (ImGui.sliderFloat("↓ Gravity", gravity, -20.0f, 0.0f, "%.2f")) {
                     physicsWorld.setGravity(gravity[0]);
                 }
 
                 ImGui.separator();
-                ImGui.text("Attitude PID");
+                ImGui.text("⚡ Attitude PID");
                 ImGui.sliderFloat("Angle Kp", angleKp, 0.0f, 20.0f, "%.2f");
                 ImGui.sliderFloat("Angle Kd", angleKd, 0.0f, 2.0f, "%.3f");
 
                 ImGui.separator();
-                ImGui.text("Rate PID");
+                ImGui.text("◆ Rate PID");
                 ImGui.sliderFloat("Rate Kp", rateKp, 0.0f, 5.0f, "%.2f");
                 ImGui.sliderFloat("Rate Ki", rateKi, 0.0f, 1.0f, "%.3f");
                 ImGui.sliderFloat("Rate Kd", rateKd, 0.0f, 0.5f, "%.3f");

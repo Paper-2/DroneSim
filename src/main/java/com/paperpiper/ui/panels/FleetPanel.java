@@ -96,7 +96,7 @@ public class FleetPanel {
             com.paperpiper.drone.Drone drone = drones.get(i);
             boolean isActive = (drone == activeDrone);
 
-            String label = String.format("%s Drone %02d", isActive ? "\u25CF" : "\u25CB", i + 1);
+            String label = String.format("%s Drone %02d", isActive ? "●" : "○", i + 1);
             if (ImGui.selectable(label, isActive)) {
                 simulation.setActiveDrone(drone);
             }

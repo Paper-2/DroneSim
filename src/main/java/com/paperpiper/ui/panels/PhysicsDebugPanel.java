@@ -33,8 +33,9 @@ public class PhysicsDebugPanel {
         if (ImGui.begin("Physics Debug")) {
 
             // Gravity
-            ImGui.separator(); ImGui.text("World");
-            if (ImGui.sliderFloat("Gravity", gravity, -20.0f, 0.0f, "%.2f m/s\u00B2")) {
+            ImGui.separator();
+            ImGui.text("World");
+            if (ImGui.sliderFloat("Gravity", gravity, -20.0f, 0.0f, "%.2f m/s²")) {
                 physicsWorld.setGravity(gravity[0]);
             }
 
@@ -42,14 +43,16 @@ public class PhysicsDebugPanel {
             ImGui.separator(); ImGui.text("Drone Physics");
             ImGui.sliderFloat("Mass", mass, 0.1f, 10.0f, "%.2f kg");
             ImGui.sliderFloat("Max Thrust", maxThrust, 1.0f, 50.0f, "%.1f N");
-            ImGui.sliderFloat("Max Torque", maxTorque, 0.5f, 20.0f, "%.1f N\u00B7m");
+            ImGui.sliderFloat("Max Torque", maxTorque, 0.5f, 20.0f, "%.1f N·m");
 
             // PID tuning
-            ImGui.separator(); ImGui.text("PID — Attitude Loop");
+            ImGui.separator();
+            ImGui.text("PID - Attitude Loop");
             ImGui.sliderFloat("Angle Kp", angleKp, 0.0f, 20.0f, "%.2f");
             ImGui.sliderFloat("Angle Kd", angleKd, 0.0f, 2.0f, "%.3f");
 
-            ImGui.separator(); ImGui.text("PID — Rate Loop");
+            ImGui.separator();
+            ImGui.text("PID - Rate Loop");
             ImGui.sliderFloat("Rate Kp", rateKp, 0.0f, 5.0f, "%.3f");
             ImGui.sliderFloat("Rate Ki", rateKi, 0.0f, 1.0f, "%.3f");
             ImGui.sliderFloat("Rate Kd", rateKd, 0.0f, 0.5f, "%.4f");

@@ -33,6 +33,8 @@ public class InspectorPanel {
         ImGui.spacing();
 
         if (drone.isMotorsArmed()) {
+
+            // temporary battery drain based on motor power (throttle) - for demo purposes only
             float drain = (drone.FL + drone.FR + drone.RL + drone.RR) * 0.002f;
             battery = Math.max(0, battery - drain);
         }
@@ -46,18 +48,18 @@ public class InspectorPanel {
             batColor = ImGui.colorConvertFloat4ToU32(1.0f, 0.2f, 0.2f, 1.0f);
         }
         ImGui.pushStyleColor(ImGuiCol.Text, batColor);
-        ImGui.text(String.format("Battery: %.0f%%", battery));
+        ImGui.text(String.format("⚡ Battery: %.0f%%", battery));
         ImGui.popStyleColor();
 
         ImGui.spacing();
 
         if (drone.isMotorsArmed()) {
             ImGui.pushStyleColor(ImGuiCol.Text, 0.2f, 1.0f, 0.2f, 1.0f);
-            ImGui.text("ARMED");
+            ImGui.text("⌘ ARMED");
             ImGui.popStyleColor();
         } else {
             ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.2f, 0.2f, 1.0f);
-            ImGui.text("DISARMED");
+            ImGui.text("⌀ DISARMED");
             ImGui.popStyleColor();
         }
 

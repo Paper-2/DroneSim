@@ -31,7 +31,7 @@ public class ScenePanel {
         ImGui.textDisabled("Active:");
         ImGui.sameLine();
         ImGui.pushStyleColor(ImGuiCol.Text, 0.35f, 0.85f, 0.35f, 1.0f);
-        ImGui.text(current != null ? current.getName() : "\u2014");
+        ImGui.text(current != null ? current.getName() : "Untitled");
         ImGui.popStyleColor();
 
         if (sceneManager.isModified()) {
@@ -53,7 +53,7 @@ public class ScenePanel {
                 if (isActive) {
                     ImGui.pushStyleColor(ImGuiCol.Text, 0.35f, 0.85f, 0.35f, 1.0f);
                 }
-                String rowLabel = (isActive ? "\u25CF " : "\u25CB ") + cfg.getName();
+                String rowLabel = (isActive ? "⏼ " : "▷ ") + cfg.getName();
                 ImGui.selectable(rowLabel + "##scene" + i, isActive,
                         ImGuiSelectableFlags.SpanAllColumns);
                 if (isActive) {

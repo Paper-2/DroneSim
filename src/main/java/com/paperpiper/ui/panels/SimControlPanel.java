@@ -24,11 +24,11 @@ public class SimControlPanel {
 
             // Pause / Resume
             if (simulation.isPaused()) {
-                if (ImGui.button("\u25B6 Resume", 120, 0)) {
+                if (ImGui.button("▶ Resume", 120, 0)) {
                     simulation.setPaused(false);
                 }
             } else {
-                if (ImGui.button("\u23F8 Pause", 120, 0)) {
+                if (ImGui.button("⏸ Pause", 120, 0)) {
                     simulation.setPaused(true);
                 }
             }

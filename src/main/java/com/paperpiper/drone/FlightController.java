@@ -3,7 +3,6 @@ package com.paperpiper.drone;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 
-
 public interface FlightController {
 
     void update(float throttle,
@@ -51,4 +50,8 @@ public interface FlightController {
      * on the next arm.
      */
     void reset();
+
+    default void setFlightMode(FlightMode mode) {
+        // no-op default
+    }
 }

@@ -1,7 +1,9 @@
 package com.paperpiper.simulation;
 
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.joml.Matrix4f;
 import org.slf4j.Logger;
@@ -36,6 +38,14 @@ public class SimulationEngine {
     private float pathSampleTimer = 0f;
     private org.joml.Vector3f startPosition = null;  // origin of the yellow ideal-path line
     private com.jme3.math.Vector3f lastKnownTarget = null;  // tracks target changes
+
+    // Per-drone trail (recorded continuously when allPathsVisible is on)
+    private final Map<Drone, List<org.joml.Vector3f>> dronePaths = new IdentityHashMap<>();
+    private float allPathsSampleTimer = 0f;
+
+    // Render toggles for the green debug trail(s)
+    private boolean activePathVisible = true;
+    private boolean allPathsVisible = false;
 
     private final org.joml.Vector3f groundColor1 = new org.joml.Vector3f(0.35f, 0.55f, 0.35f);
     private final org.joml.Vector3f groundColor2 = new org.joml.Vector3f(0.25f, 0.45f, 0.25f);
@@ -108,6 +118,21 @@ public class SimulationEngine {
                 flightPath.add(new org.joml.Vector3f(p.x, p.y, p.z));
             }
         }
+
+        // Per-drone trails: only sample while the toggle is on, but keep the
+        // recorded points after it's turned off so they remain visible until
+        // explicitly cleared.
+        if (allPathsVisible) {
+            allPathsSampleTimer += deltaTime;
+            if (allPathsSampleTimer >= PATH_SAMPLE_INTERVAL) {
+                allPathsSampleTimer -= PATH_SAMPLE_INTERVAL;
+                for (Drone drone : drones) {
+                    Vector3f p = drone.getPosition();
+                    dronePaths.computeIfAbsent(drone, d -> new ArrayList<>())
+                            .add(new org.joml.Vector3f(p.x, p.y, p.z));
+                }
+            }
+        }
     }
 
     /**
@@ -158,10 +183,25 @@ public class SimulationEngine {
                     new org.joml.Vector3f(1.0f, 1.0f, 0.2f));  // yellow line
         }
 
-        // Draw flight path trail
-        if (flightPath.size() >= 2) {
+        // Draw flight path trail (active drone, toggled with F5)
+        if (activePathVisible && flightPath.size() >= 2) {
             renderer.renderLineStrip(flightPath,
                     new org.joml.Vector3f(0.2f, 1.0f, 0.4f));  // green trail
+        }
+
+        // Draw per-drone trails (toggled with F6). Skip the active drone's
+        // entry if the active-trail is already drawn to avoid double-drawing.
+        if (allPathsVisible) {
+            for (Map.Entry<Drone, List<org.joml.Vector3f>> e : dronePaths.entrySet()) {
+                if (e.getValue().size() < 2) {
+                    continue;
+                }
+                if (activePathVisible && e.getKey() == activeDrone) {
+                    continue;
+                }
+                renderer.renderLineStrip(e.getValue(),
+                        new org.joml.Vector3f(0.2f, 1.0f, 0.4f));
+            }
         }
 
         renderer.endRender();
@@ -184,6 +224,7 @@ public class SimulationEngine {
     public void removeDrone(Drone drone) {
         drone.cleanup(physicsWorld);
         drones.remove(drone);
+        dronePaths.remove(drone);
         if (activeDrone == drone) {
             activeDrone = drones.isEmpty() ? null : drones.get(0);
         }
@@ -194,6 +235,27 @@ public class SimulationEngine {
      */
     public Drone getActiveDrone() {
         return activeDrone;
+    }
+
+    public boolean isActivePathVisible() {
+        return activePathVisible;
+    }
+
+    public void setActivePathVisible(boolean visible) {
+        this.activePathVisible = visible;
+    }
+
+    public boolean isAllPathsVisible() {
+        return allPathsVisible;
+    }
+
+    public void setAllPathsVisible(boolean visible) {
+        this.allPathsVisible = visible;
+        if (!visible) {
+            // Drop the recorded points so toggling on again starts fresh.
+            dronePaths.clear();
+            allPathsSampleTimer = 0f;
+        }
     }
 
     /**

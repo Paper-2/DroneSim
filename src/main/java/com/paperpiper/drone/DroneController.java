@@ -18,6 +18,18 @@ public class DroneController implements FlightController {
     private Vector3f targetPosition = null;
     private boolean positionHoldEnabled = false; // : if this is ever false autopilot will be disabled. This is not intended.
 
+    // High-level flight mode. POSITION_HOLD is equivalent to the legacy
+    // positionHoldEnabled flag; the other modes gate different slices of the
+    // cascade (see update()).
+    private FlightMode flightMode = FlightMode.STABILIZED;
+
+    // Captured altitude setpoint for ALTITUDE_HOLD (world Y, metres). Latched
+    // when the mode is entered.
+    private Float altitudeHoldTarget = null;
+
+    // Throttle used in MANUAL when sticks are centred  no PID help.
+    private static final float MANUAL_HOVER_BASE = 0.5f;
+
     // =====================================================================
     // Position → Velocity (outer P loop)
     // =====================================================================
@@ -132,6 +144,71 @@ public class DroneController implements FlightController {
 
         if (deltaTime <= 0f) {
             return;
+        }
+
+        // -------------------------------------------------------------
+        // MANUAL: bypass every PID. Sticks go straight to the mixer.
+        // This is the regression test that the mixer is factored out of
+        // the loop chain  see FlightModes_essay.md.
+        // -------------------------------------------------------------
+        if (flightMode == FlightMode.MANUAL) {
+            float thr = clamp(throttle <= 0f ? MANUAL_HOVER_BASE : throttle, 0f, 1f);
+            // X-quad mixer: same sign convention as the PID branch below.
+            float corrFL = +pitchInput + rollInput + yawInput;
+            float corrFR = +pitchInput - rollInput - yawInput;
+            float corrRL = -pitchInput + rollInput - yawInput;
+            float corrRR = -pitchInput - rollInput + yawInput;
+            // Scale by half the correction span so full-stick stays in [0,1].
+            float scale = 0.5f * MAX_CORRECTION_SPAN;
+            motorFL = clamp(thr + corrFL * scale, 0f, 1f);
+            motorFR = clamp(thr + corrFR * scale, 0f, 1f);
+            motorRL = clamp(thr + corrRL * scale, 0f, 1f);
+            motorRR = clamp(thr + corrRR * scale, 0f, 1f);
+            return;
+        }
+
+        // -------------------------------------------------------------
+        // EMERGENCY_LAND: ignore stick input, drive a slow descent.
+        // Implemented by faking a position target directly below the
+        // current position so the existing cascade does the rest.
+        // -------------------------------------------------------------
+        if (flightMode == FlightMode.EMERGENCY_LAND) {
+            // Override sticks so the angle PID actively levels the craft.
+            rollInput = 0f;
+            pitchInput = 0f;
+            yawInput = 0f;
+            // Target a point just below ground so the descent doesn't stall
+            // out as the drone approaches it.
+            targetPosition = new Vector3f(position.x, -1f, position.z);
+            positionHoldEnabled = true;
+        }
+
+        // -------------------------------------------------------------
+        // ALTITUDE_HOLD: stabilized horizontal sticks, autopilot Y.
+        // Implemented as a one-axis position-hold on Y around the
+        // captured altitude target; horizontal stick input is ignored
+        // by the cascade (treated as zero) so the user pilots roll/
+        // pitch/yaw manually below.
+        // -------------------------------------------------------------
+        if (flightMode == FlightMode.ALTITUDE_HOLD) {
+            if (altitudeHoldTarget == null) {
+                altitudeHoldTarget = position.y;
+            }
+            // Single-axis vertical PID directly on velocity error.
+            float velErrY = (-velocity.y) + (altitudeHoldTarget - position.y) * kpPos;
+            float accelY = pidStepWithAccel(velErrY, acceleration.y,
+                    kpVelY, kiVelY, kdVelY, deltaTime, PidChannel.POS_Y);
+            float totalY = accelY + GRAVITY;
+            float maxAccel = (TOTAL_MAX_THRUST * MIXER_HEADROOM) / DRONE_MASS;
+            float magY = Math.abs(totalY);
+            if (magY > maxAccel) {
+                totalY = Math.signum(totalY) * maxAccel;
+            }
+            // Quadratic thrust curve.
+            throttle = clamp((float) Math.sqrt((DRONE_MASS * Math.abs(totalY)) / TOTAL_MAX_THRUST), 0f, 1f);
+            // Fall through to the angle/rate loops with the user's sticks.
+        } else {
+            altitudeHoldTarget = null;
         }
 
         // 0) Position hold  overrides Manual input.
@@ -412,6 +489,30 @@ public class DroneController implements FlightController {
     @Override
     public boolean isPositionHoldEnabled() {
         return positionHoldEnabled;
+    }
+
+    @Override
+    public void setFlightMode(FlightMode mode) {
+        if (mode == null || mode == this.flightMode) {
+            return;
+        }
+        // Leaving ALTITUDE_HOLD or EMERGENCY_LAND: release latched state.
+        if (this.flightMode == FlightMode.ALTITUDE_HOLD) {
+            altitudeHoldTarget = null;
+        }
+        if (this.flightMode == FlightMode.EMERGENCY_LAND) {
+            // Drop the synthetic descent target so the next mode starts clean.
+            targetPosition = null;
+            positionHoldEnabled = false;
+        }
+        // Clear PID state on every mode transition so integrals from the old
+        // regime don't bleed into the new one.
+        Arrays.fill(integrals, 0f);
+        Arrays.fill(prevErrors, 0f);
+        this.flightMode = mode;
+        // Keep the legacy boolean in sync.
+        this.positionHoldEnabled = (mode == FlightMode.POSITION_HOLD)
+                || (mode == FlightMode.EMERGENCY_LAND && targetPosition != null);
     }
 
     public void setHoverThrottle(float t) {

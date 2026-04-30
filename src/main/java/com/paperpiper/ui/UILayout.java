@@ -56,6 +56,32 @@ public class UILayout {
     private final float[] rateKi = {0.1f};
     private final float[] rateKd = {0.02f};
 
+    public boolean isDroneHUDVisible() {
+        return droneHUD.isVisible();
+    }
+
+    public void setDroneHUDVisible(boolean visible) {
+        droneHUD.setVisible(visible);
+    }
+
+    public void toggleDroneHUD() {
+        droneHUD.setVisible(!droneHUD.isVisible());
+    }
+
+    private void loadSceneAndRestartRecording(SimulationEngine simulation, com.paperpiper.simulation.SceneConfig cfg) {
+        boolean wasRecording = dataExporter.isRecording();
+        if (wasRecording) {
+            dataExporter.discardRecording();
+        }
+        sceneManager.setCurrentScene(cfg);
+        simulation.loadScene(cfg);
+        if (wasRecording) {
+            dataExporter.startRecording();
+            eventLogPanel.addEvent(simulation.getSimulationTime(),
+                    "Recording restarted for new scene");
+        }
+    }
+
     public void render(SimulationEngine simulation, Renderer renderer,
             PhysicsWorld physicsWorld, Window window, float deltaTime) {
 
@@ -143,8 +169,7 @@ public class UILayout {
                 for (int i = 0; i < scenes.size(); i++) {
                     var cfg = scenes.get(i);
                     if (ImGui.menuItem(cfg.getName())) {
-                        sceneManager.setCurrentScene(cfg);
-                        simulation.loadScene(cfg);
+                        loadSceneAndRestartRecording(simulation, cfg);
                         eventLogPanel.addEvent(simulation.getSimulationTime(),
                                 "Scene loaded: " + cfg.getName());
                     }
@@ -363,7 +388,8 @@ public class UILayout {
 
             // Scene Manager (top ~55 %)
             if (ImGui.beginChild("##SceneMgrChild", 0, availH * 0.55f, false)) {
-                scenePanel.render(sceneManager, simulation, deltaTime);
+                scenePanel.render(sceneManager, simulation, deltaTime,
+                        cfg -> loadSceneAndRestartRecording(simulation, cfg));
             }
             ImGui.endChild();
 

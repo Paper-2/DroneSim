@@ -14,7 +14,10 @@ import static org.lwjgl.opengl.GL11.GL_FLOAT;
 import static org.lwjgl.opengl.GL11.GL_LEQUAL;
 import static org.lwjgl.opengl.GL11.GL_LESS;
 import static org.lwjgl.opengl.GL11.GL_LINES;
+import static org.lwjgl.opengl.GL11.GL_LINE_SMOOTH;
+import static org.lwjgl.opengl.GL11.GL_LINE_SMOOTH_HINT;
 import static org.lwjgl.opengl.GL11.GL_LINE_STRIP;
+import static org.lwjgl.opengl.GL11.GL_NICEST;
 import static org.lwjgl.opengl.GL11.GL_ONE_MINUS_SRC_ALPHA;
 import static org.lwjgl.opengl.GL11.GL_SRC_ALPHA;
 import static org.lwjgl.opengl.GL11.GL_TRIANGLES;
@@ -29,6 +32,8 @@ import static org.lwjgl.opengl.GL11.glDisable;
 import static org.lwjgl.opengl.GL11.glDrawArrays;
 import static org.lwjgl.opengl.GL11.glDrawElements;
 import static org.lwjgl.opengl.GL11.glEnable;
+import static org.lwjgl.opengl.GL11.glHint;
+import static org.lwjgl.opengl.GL11.glLineWidth;
 import static org.lwjgl.opengl.GL13.GL_MULTISAMPLE;
 import static org.lwjgl.opengl.GL15.GL_ARRAY_BUFFER;
 import static org.lwjgl.opengl.GL15.GL_DYNAMIC_DRAW;
@@ -108,6 +113,12 @@ public class Renderer {
 
         // Enable multisampling (antialiasing)
         glEnable(GL_MULTISAMPLE);
+
+        // Smooth (anti-aliased) lines for debug overlays  noticeably less
+        // pixelated than the default 1-pixel aliased lines.
+        glEnable(GL_LINE_SMOOTH);
+        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+        glLineWidth(2.5f);
 
         // Enable depth testing
         glEnable(GL_DEPTH_TEST);
@@ -404,6 +415,7 @@ public class Renderer {
 
         // Draw the line (disable culling since lines have no face)
         glDisable(GL_CULL_FACE);
+        glLineWidth(2.5f);
         glBindVertexArray(lineVaoId);
         glDrawArrays(GL_LINES, 0, 2);
         glBindVertexArray(0);
@@ -456,6 +468,7 @@ public class Renderer {
         shaderProgram.setUniform("objectAlpha", 1.0f);
 
         glDisable(GL_CULL_FACE);
+        glLineWidth(2.5f);
         glBindVertexArray(lineVaoId);
         glDrawArrays(GL_LINE_STRIP, 0, n);
         glBindVertexArray(0);

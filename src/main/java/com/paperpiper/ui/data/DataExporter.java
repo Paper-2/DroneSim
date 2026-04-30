@@ -44,7 +44,9 @@ public class DataExporter {
     }
 
     public void recordFrame(SimulationEngine simulation) {
-        if (!recording || writer == null) return;
+        if (!recording || writer == null) {
+            return;
+        }
 
         try {
             float simTime = simulation.getSimulationTime();
@@ -84,8 +86,38 @@ public class DataExporter {
         recording = false;
     }
 
-    public boolean isRecording() { return recording; }
-    public String getCurrentFile() { return currentFile; }
+    public void discardRecording() {
+        if (!recording && writer == null) {
+            return;
+        }
+        String fileToDelete = currentFile;
+        if (writer != null) {
+            try {
+                writer.close();
+            } catch (IOException e) {
+                logger.error("Error closing recording file before discard", e);
+            }
+            writer = null;
+        }
+        recording = false;
+        if (fileToDelete != null) {
+            try {
+                Files.deleteIfExists(LOG_DIR.resolve(fileToDelete));
+                logger.info("Recording discarded: {}", fileToDelete);
+            } catch (IOException e) {
+                logger.warn("Failed to delete discarded recording '{}'", fileToDelete, e);
+            }
+        }
+        currentFile = null;
+    }
+
+    public boolean isRecording() {
+        return recording;
+    }
+
+    public String getCurrentFile() {
+        return currentFile;
+    }
 
     public void cleanup() {
         stopRecording();

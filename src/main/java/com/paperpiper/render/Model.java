@@ -218,7 +218,7 @@ public class Model {
                 logger.debug("  Loaded UV coordinates for mesh with {} vertices", vertexCount);
             }
         } else {
-            logger.debug("  No UV coordinates found for mesh, using default");
+            // logger.debug("  No UV coordinates found for mesh, using default");
         }
 
         // Indices
@@ -498,7 +498,7 @@ public class Model {
      */
     public void createGroup(String groupName) {
         meshGroups.put(groupName, new ArrayList<>());
-        logger.info("Created group '{}'", groupName);
+         // logger.info("Created group '{}'", groupName);
     }
 
     /**
@@ -507,7 +507,7 @@ public class Model {
     public void addMeshToGroup(String[] meshNames, String groupName) {
         List<Mesh> group = meshGroups.get(groupName);
         if (group == null) {
-            logger.warn("Group '{}' does not exist", groupName);
+            // logger.warn("Group '{}' does not exist", groupName);
             return;
         }
         for (String meshName : meshNames) {
@@ -570,12 +570,12 @@ public class Model {
                 meshDataMap.put(clonedMesh.getMeshName(), copiedMeshData);
                 target.add(clonedMesh);
 
-                logger.info("Copied mesh '{}' to group '{}' (new name: '{}')",
-                        sourceMeshName, targetGroup, newMeshName);
+                // logger.info("Copied mesh '{}' to group '{}' (new name: '{}')",
+                //         sourceMeshName, targetGroup, newMeshName);
             }
         }
 
-        logger.info("Copied group '{}' to '{}' with full mesh copies", sourceGroup, targetGroup);
+        // logger.info("Copied group '{}' to '{}' with full mesh copies", sourceGroup, targetGroup);
     }
 
     /**
@@ -641,10 +641,11 @@ public class Model {
             // Update the translation in the transform matrix
             transform.setTranslation(translation);
 
-            logger.info("Flipped mesh '{}' position to ({}, {}, {})",
-                    meshName, translation.x, translation.y, translation.z);
+            // logger.info("Flipped mesh '{}' position to ({}, {}, {})",
+            //         meshName, translation.x, translation.y, translation.z);
         } else {
-            logger.warn("Mesh '{}' not found for flip operation", meshName);
+             // there is nothing...
+             // logger.warn("Mesh '{}' not found for flip operation", meshName);
         }
     }
 
@@ -682,8 +683,8 @@ public class Model {
                 // Update the translation in the transform matrix
                 transform.setTranslation(translation);
 
-                logger.info("Flipped mesh '{}' position to ({}, {}, {})",
-                        mesh.getMeshName(), translation.x, translation.y, translation.z);
+                // logger.info("Flipped mesh '{}' position to ({}, {}, {})",
+                //         mesh.getMeshName(), translation.x, translation.y, translation.z);
             }
         }
     }
@@ -853,8 +854,8 @@ public class Model {
         // Add to debug group
         meshGroups.get("debug").add(boxMesh);
 
-        logger.debug("Added debug box '{}' at center ({}, {}, {}) with half-extents ({}, {}, {})",
-                name, center.x, center.y, center.z, halfExtents.x, halfExtents.y, halfExtents.z);
+        // logger.debug("Added debug box '{}' at center ({}, {}, {}) with half-extents ({}, {}, {})",
+        //         name, center.x, center.y, center.z, halfExtents.x, halfExtents.y, halfExtents.z);
     }
 
     /**

@@ -1,5 +1,7 @@
 package com.paperpiper.ui.panels;
 
+import java.util.function.Consumer;
+
 import com.paperpiper.simulation.SceneConfig;
 import com.paperpiper.simulation.SceneManager;
 import com.paperpiper.simulation.SimulationEngine;
@@ -18,7 +20,8 @@ public class ScenePanel {
     private String statusMessage = "";
     private float statusTimer = 0f;
 
-    public void render(SceneManager sceneManager, SimulationEngine simulation, float deltaTime) {
+    public void render(SceneManager sceneManager, SimulationEngine simulation, float deltaTime,
+            Consumer<SceneConfig> onSceneLoad) {
         if (statusTimer > 0) {
             statusTimer -= deltaTime;
         }
@@ -61,8 +64,7 @@ public class ScenePanel {
                 }
 
                 if (ImGui.isItemClicked()) {
-                    sceneManager.setCurrentScene(cfg);
-                    simulation.loadScene(cfg);
+                    onSceneLoad.accept(cfg);
                     flash("Loaded: " + cfg.getName());
                 }
 
@@ -76,8 +78,7 @@ public class ScenePanel {
                 float btnW = 42;
                 ImGui.sameLine(ImGui.getContentRegionAvailX() - btnW + ImGui.getScrollX());
                 if (ImGui.smallButton("Load##" + i)) {
-                    sceneManager.setCurrentScene(cfg);
-                    simulation.loadScene(cfg);
+                    onSceneLoad.accept(cfg);
                     flash("Loaded: " + cfg.getName());
                 }
             }

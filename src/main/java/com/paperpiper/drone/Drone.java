@@ -237,8 +237,8 @@ public class Drone {
             // Store for visualization
             meshCollisionBoxes.add(new MeshCollisionBox(meshName, center, halfExtents));
 
-            logger.debug("Added collision box for mesh '{}': center={}, halfExtents={}",
-                    meshName, center, halfExtents);
+            // logger.debug("Added collision box for mesh '{}': center={}, halfExtents={}",
+            //         meshName, center, halfExtents);
         }
 
         // Calculate overall AABB for legacy support
@@ -601,6 +601,31 @@ public class Drone {
 
     public boolean isPositionHoldEnabled() {
         return controller.isPositionHoldEnabled();
+    }
+
+    private FlightMode flightMode = FlightMode.MANUAL;
+
+    /**
+     * Sets the high-level flight mode. Today only
+     * {@link FlightMode#POSITION_HOLD} has distinct controller behavior (the
+     * position-hold loop); the other modes disengage it and fall back to direct
+     * stick input. Stored regardless so the UI / telemetry can display the
+     * requested mode.
+     */
+    public void setFlightMode(FlightMode mode) {
+        if (mode == null) {
+            return;
+        }
+        this.flightMode = mode;
+        controller.setFlightMode(mode);
+        // Keep the legacy position-hold flag in sync so callers that still
+        // ask isPositionHoldEnabled() get the right answer.
+        controller.setPositionHoldEnabled(mode == FlightMode.POSITION_HOLD);
+        logger.info("Flight mode -> {}", mode);
+    }
+
+    public FlightMode getFlightMode() {
+        return flightMode;
     }
 
     public Model getModel() {

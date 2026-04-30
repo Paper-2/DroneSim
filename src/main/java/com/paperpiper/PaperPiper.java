@@ -4,16 +4,24 @@ import org.joml.Vector3f;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_A;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_D;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_F2;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_F3;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_F5;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_F6;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_I;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_CONTROL;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_O;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_P;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_S;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_TAB;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_U;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_W;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.paperpiper.drone.FlightMode;
 import com.paperpiper.physics.PhysicsWorld;
 import com.paperpiper.render.Camera;
 import com.paperpiper.render.Renderer;
@@ -206,6 +214,13 @@ public class PaperPiper {
         }
     }
 
+    private void applyFlightModeToActiveDrone(FlightMode mode) {
+        var drone = simulation.getActiveDrone();
+        if (drone != null && drone.getFlightMode() != mode) {
+            drone.setFlightMode(mode);
+        }
+    }
+
     // TODO: input. Should be able to handle keyboard/mouse + controller (steamdeck)
     private void handleInput() {
         float deltaTime = 1.0f / 60.0f;
@@ -257,6 +272,41 @@ public class PaperPiper {
                 while (window.isKeyPressed(GLFW_KEY_F3)) {
                     window.pollEvents();
                 }
+            }
+
+            // F2  toggle the 3D HUD overlay (drone labels)
+            if (window.isKeyPressed(GLFW_KEY_F2)) {
+                uiLayout.toggleDroneHUD();
+                while (window.isKeyPressed(GLFW_KEY_F2)) {
+                    window.pollEvents();
+                }
+            }
+
+            // F5  toggle the green flight-path trail of the active drone
+            if (window.isKeyPressed(GLFW_KEY_F5)) {
+                simulation.setActivePathVisible(!simulation.isActivePathVisible());
+                while (window.isKeyPressed(GLFW_KEY_F5)) {
+                    window.pollEvents();
+                }
+            }
+
+            // F6  toggle per-drone trails (every drone leaves a green trail)
+            if (window.isKeyPressed(GLFW_KEY_F6)) {
+                simulation.setAllPathsVisible(!simulation.isAllPathsVisible());
+                while (window.isKeyPressed(GLFW_KEY_F6)) {
+                    window.pollEvents();
+                }
+            }
+
+            // Flight mode selection on the active drone: U/I/O/P
+            if (window.isKeyPressed(GLFW_KEY_U)) {
+                applyFlightModeToActiveDrone(FlightMode.MANUAL);
+            } else if (window.isKeyPressed(GLFW_KEY_I)) {
+                applyFlightModeToActiveDrone(FlightMode.STABILIZED);
+            } else if (window.isKeyPressed(GLFW_KEY_O)) {
+                applyFlightModeToActiveDrone(FlightMode.ALTITUDE_HOLD);
+            } else if (window.isKeyPressed(GLFW_KEY_P)) {
+                applyFlightModeToActiveDrone(FlightMode.POSITION_HOLD);
             }
         }
 

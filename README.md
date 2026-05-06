@@ -21,6 +21,12 @@ cd DroneSim
 ./gradlew run
 ```
 
+If `./gradlew run` fails, try disabling the configuration cache:
+
+```bash
+./gradlew run --no-configuration-cache
+```
+
 
 ## License
 
